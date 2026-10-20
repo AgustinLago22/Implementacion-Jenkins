@@ -44,6 +44,7 @@ Estas reglas son más importantes que terminar rápido.
 | Acceso a Docker desde Jenkins | Se monta el socket del Docker del host (`/var/run/docker.sock`) y se instala el Docker CLI en una imagen custom de Jenkins. El riesgo de seguridad está documentado. |
 | Disparador | Push a GitHub → **webhook** vía túnel (ngrok con dominio fijo, o cloudflared). **SCM polling** queda como plan B. |
 | Repo | Un único repo (app + Jenkinsfile + infra). En una empresa `infra/` sería un repo aparte; el informe lo aclara. |
+| Trabajo en equipo | Cada integrante corre su propio Jenkins. Se comparte la **configuración como código** (Jenkinsfile, `plugins.txt`, JCasC), no el volumen `jenkins_home`. El historial de builds es local de cada uno. |
 
 ## La historia de la demo
 
@@ -265,6 +266,9 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 0 — Preparación del repo
-- **Pasos completados:** ninguno
-- **Notas:** —
+- **Paso actual:** 2 — El "hola mundo" literal (pendiente de confirmación para arrancar)
+- **Pasos completados:** 0, 1
+- **Notas:**
+  - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
+  - El mirror de plugins `ftp-nyc.osuosl.org` falla de forma intermitente desde esta red. En el paso 5, prever reintentos o un mirror alternativo para `jenkins-plugin-cli`.
+  - Evaluar adelantar el 10b (JCasC) después del paso 5, para que el otro integrante no repita el asistente a mano.
