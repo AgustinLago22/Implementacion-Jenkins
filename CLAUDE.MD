@@ -266,9 +266,10 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 2 — El "hola mundo" literal (pendiente de confirmación para arrancar)
-- **Pasos completados:** 0, 1
+- **Paso actual:** 3 — Pipeline as code (pendiente de confirmación para arrancar)
+- **Pasos completados:** 0, 1, 2
 - **Notas:**
   - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
   - El mirror de plugins `ftp-nyc.osuosl.org` falla de forma intermitente desde esta red. En el paso 5, prever reintentos o un mirror alternativo para `jenkins-plugin-cli`.
+  - Este Jenkins trae **Pipeline Graph View** (no Stage View). En el paso 5, proponer `pipeline-graph-view` en lugar de `pipeline-stage-view` en `plugins.txt`.
   - Evaluar adelantar el 10b (JCasC) después del paso 5, para que el otro integrante no repita el asistente a mano.

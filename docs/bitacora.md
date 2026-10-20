@@ -33,3 +33,15 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Verificación:** `docker compose down` borró el contenedor y la red, pero no el volumen. Después del `up`, siguen el mismo usuario admin y la misma Jenkins URL, y no vuelve a aparecer el asistente.
 **Evidencia guardada:** docs/capturas/paso1-unlock.png, docs/capturas/paso1-plugins-error.png, docs/capturas/paso1-dashboard.png, infra/docker-compose.yml
 **Equivalente en ADO:** no hay equivalente directo. En ADO Services el servidor (el "controller") lo administra Microsoft: no se instala, no se actualiza y no se respalda. Lo más parecido es **Azure DevOps Server** (on-premises), donde sí hay que administrar el servidor. Los plugins de Jenkins equivalen a las extensiones del Marketplace de ADO, aunque en Jenkins hasta funciones básicas (Git, Pipeline) son plugins.
+
+---
+
+## Paso 2 — El "hola mundo" literal (2026-10-20)
+**Qué se hizo:** se creó un job de tipo *Pipeline* (`test`) con un script declarativo escrito en la UI: un `stage('Saludo')` que hace `echo 'Hola mundo desde Jenkins'`. El build #1 terminó en verde y la consola muestra el mensaje.
+**Decisiones y por qué:**
+- **Pipeline declarativo** (`pipeline` / `agent` / `stages` / `stage` / `steps`) en lugar de *scripted*: tiene estructura fija, Jenkins lo valida antes de ejecutar y es el estilo recomendado hoy.
+- `agent any`: el build corrió en el propio controller (*Built-In Node*, 2 executors), con workspace `/var/jenkins_home/workspace/test`. Sirve para el laboratorio, pero en producción no se recomienda correr builds en el controller; se retoma en el Paso 6 (contenedores) y en el 10c (agente separado).
+- El script se escribió a propósito en la UI, para contrastarlo con el Paso 3: queda guardado solo en `jobs/<job>/config.xml` dentro de `JENKINS_HOME`, sin historial, sin revisión y sin forma de compartirlo.
+**Problemas y cómo se resolvieron:** el primer intento falló con `Undefined section "stage"` y `Missing required section "stages"`. Causa: un typo, `stage {` en lugar de `stages {` en la línea 3. El build falló en la compilación, **sin ejecutar ningún step** (no aparece `Running on ...`): el declarativo valida la estructura completa antes de arrancar. Se corrigió en la UI. Esa corrección no quedó registrada en ningún lado, lo que ilustra el problema que resuelve el Paso 3. El job original (`hola-mundo`) se borró y se recreó como `test`.
+**Evidencia guardada:** docs/capturas/paso2-error-sintaxis.png, docs/capturas/paso2-job-config.png, docs/capturas/paso2-stages.png, docs/capturas/paso2-consola.png
+**Equivalente en ADO:** `pipeline {}` ≈ `azure-pipelines.yml`; `agent any` ≈ `pool:` (en ADO el pool lo provee Microsoft, en Jenkins son nodos propios); `stages/stage/steps` ≈ `stages/stage/steps`; job ≈ definición del pipeline; build #N ≈ run #N. Un error de sintaxis en el declarativo equivale al *"pipeline is invalid"* del YAML de ADO, que también falla antes de pedir un agente. Escribir el script en la UI equivale a un pipeline *Classic*.
