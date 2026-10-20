@@ -1,0 +1,22 @@
+# Jenkins local para el laboratorio de CI/CD.
+# Levantar desde esta carpeta con: docker compose up -d
+services:
+  jenkins:
+    # Imagen oficial, rama LTS (estable) con Java 21.
+    # LTS en lugar de "weekly" porque para una demo importa más la estabilidad que lo último.
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins
+    # Si se reinicia Docker Desktop, Jenkins vuelve solo (salvo que lo frenemos a mano).
+    restart: unless-stopped
+    ports:
+      - "8080:8080"     # UI web
+      - "50000:50000"   # conexión de agentes inbound (se usa en el extra 10c)
+    volumes:
+      # JENKINS_HOME guarda TODO el estado del controller: jobs, builds, plugins, usuarios.
+      # Va en un volumen para que sobreviva a borrar y recrear el contenedor.
+      - jenkins_home:/var/jenkins_home
+
+volumes:
+  jenkins_home:
+    # Nombre fijo: sin esto, Compose lo llamaría "infra_jenkins_home" (prefijo de la carpeta).
+    name: jenkins_home
