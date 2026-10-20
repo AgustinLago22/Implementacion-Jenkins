@@ -6,7 +6,7 @@ pipeline {
         stage('Saludo') {
             steps {
                 // Comillas dobles: Groovy interpola ${...}. Con simples se imprimiría literal.
-                echo "Hola mundo desde Jenkins - build #${env.BUILD_NUMBER}"
+                echo "Hola mundo versionado - build #${env.BUILD_NUMBER}"
             }
         }
 
