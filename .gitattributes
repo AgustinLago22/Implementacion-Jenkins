@@ -1,0 +1,12 @@
+# Normaliza todos los archivos de texto a LF, también en Windows.
+# Los scripts y el Jenkinsfile se ejecutan en contenedores Linux:
+# un CRLF ahí rompe el intérprete ("/bin/sh^M: bad interpreter").
+* text=auto eol=lf
+
+# Binarios: Git no debe tocarlos ni intentar hacer diff de texto.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.mp4 binary
