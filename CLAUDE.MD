@@ -266,8 +266,8 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 3 — Pipeline as code (pendiente de confirmación para arrancar)
-- **Pasos completados:** 0, 1, 2
+- **Paso actual:** 5 — Darle a Jenkins acceso a Docker (pendiente de confirmación para arrancar)
+- **Pasos completados:** 0, 1, 2, 3, 4
 - **Notas:**
   - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
   - El mirror de plugins `ftp-nyc.osuosl.org` falla de forma intermitente desde esta red. En el paso 5, prever reintentos o un mirror alternativo para `jenkins-plugin-cli`.

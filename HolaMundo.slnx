@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HolaMundo.Api/HolaMundo.Api.csproj" />
+    <Project Path="src/HolaMundo.Tests/HolaMundo.Tests.csproj" />
+  </Folder>
+</Solution>

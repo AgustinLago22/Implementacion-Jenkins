@@ -45,3 +45,36 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Problemas y cómo se resolvieron:** el primer intento falló con `Undefined section "stage"` y `Missing required section "stages"`. Causa: un typo, `stage {` en lugar de `stages {` en la línea 3. El build falló en la compilación, **sin ejecutar ningún step** (no aparece `Running on ...`): el declarativo valida la estructura completa antes de arrancar. Se corrigió en la UI. Esa corrección no quedó registrada en ningún lado, lo que ilustra el problema que resuelve el Paso 3. El job original (`hola-mundo`) se borró y se recreó como `test`.
 **Evidencia guardada:** docs/capturas/paso2-error-sintaxis.png, docs/capturas/paso2-job-config.png, docs/capturas/paso2-stages.png, docs/capturas/paso2-consola.png
 **Equivalente en ADO:** `pipeline {}` ≈ `azure-pipelines.yml`; `agent any` ≈ `pool:` (en ADO el pool lo provee Microsoft, en Jenkins son nodos propios); `stages/stage/steps` ≈ `stages/stage/steps`; job ≈ definición del pipeline; build #N ≈ run #N. Un error de sintaxis en el declarativo equivale al *"pipeline is invalid"* del YAML de ADO, que también falla antes de pedir un agente. Escribir el script en la UI equivale a un pipeline *Classic*.
+
+---
+
+## Paso 3 — Pipeline as code (Jenkinsfile desde el repo) (2026-10-20)
+**Qué se hizo:** el pipeline pasó a un `Jenkinsfile` en la raíz del repo. Se creó el job `hola-mundo` de tipo *Pipeline script from SCM* (Git, `https://github.com/AgustinLago22/Implementacion-Jenkins`, rama `*/main`, script path `Jenkinsfile`). El job `test` del Paso 2 se dejó como ejemplo del "antes".
+**Decisiones y por qué:**
+- Job nuevo en lugar de reconfigurar `test`: quedan los dos modelos lado a lado (pipeline en la UI vs pipeline en el repo), lo que sirve para el informe.
+- Sin credenciales: el repo es público. Con un repo privado haría falta un token guardado en el almacén de credenciales de Jenkins.
+- Se agregó un stage `Info del build` que imprime `GIT_COMMIT` y `GIT_BRANCH` y hace `ls -la` del workspace: es la prueba visible del checkout implícito.
+**Verificación:**
+- Build #1: `Obtained Jenkinsfile from git ...`, `Checking out Revision 97e236d...`, `Hola mundo desde Jenkins - build #1`.
+- Se cambió el `echo` en el `Jenkinsfile`, se commiteó y pusheó (`d429552`) y se lanzó Build Now **sin tocar la configuración del job**. El build #2 tomó la revisión nueva y mostró `Hola mundo versionado - build #2`.
+**Problemas y cómo se resolvieron:** ninguno. Riesgo conocido: Jenkins propone `*/master` como rama por defecto; con un repo que usa `main`, el build falla con `couldn't find any revision to build`.
+**Evidencia guardada:** docs/capturas/paso3-job-scm.png, docs/capturas/paso3-consola-build1.png, docs/capturas/paso3-consola-build2.png, Jenkinsfile
+**Equivalente en ADO:** *Pipeline script from SCM* + `Jenkinsfile` ≈ pipeline YAML que apunta a `azure-pipelines.yml` del repo. El checkout implícito ≈ el `checkout: self` automático. `BUILD_NUMBER` ≈ `Build.BuildId`, `GIT_COMMIT` ≈ `Build.SourceVersion`, `GIT_BRANCH` ≈ `Build.SourceBranch`. Las credenciales de Jenkins para un repo privado ≈ una *service connection*.
+
+---
+
+## Paso 4 — La app .NET y sus tests (2026-10-20)
+**Qué se hizo:**
+- `src/HolaMundo.Api`: minimal API en .NET 10 con `GET /`, que devuelve `{ "mensaje", "version" }`.
+- `src/HolaMundo.Tests`: 3 tests xUnit con `WebApplicationFactory`.
+- `HolaMundo.slnx`: la solución, en el formato nuevo de .NET 10.
+- `dotnet test` pasa localmente (3/3), y se probó la API a mano con y sin `APP_VERSION`.
+**Decisiones y por qué:**
+- **La versión llega de afuera** (`APP_VERSION`, con `"dev"` por defecto): *build once, deploy many*. Se construye una imagen y cada entorno la configura con variables, sin recompilar. Se lee de `IConfiguration` en cada request; así incluye las variables de entorno y los tests la pueden inyectar con `UseSetting`.
+- **Ningún test compara el texto exacto del mensaje**: el acto 1 de la demo cambia el saludo y tiene que quedar verde. Los tests verifican el contrato (200, mensaje no vacío, versión correcta), no el contenido.
+- **`WebApplicationFactory`** en lugar de testear solo una clase: levanta la API real en memoria y le hace requests HTTP, sin abrir puertos. Es lo más parecido al smoke test, pero dentro del CI.
+- El mensaje vive en una constante (`Saludo.MensajeActual`): el acto 1 es cambiar una línea.
+- Versiones de paquetes tomadas de la plantilla oficial `dotnet new xunit` del SDK 10.0.401 (xunit 2.9.3, Microsoft.NET.Test.Sdk 17.14.1) + `Microsoft.AspNetCore.Mvc.Testing` 10.0.13.
+**Problemas y cómo se resolvieron:** ninguno. Riesgo detectado: si en la terminal queda definida `APP_VERSION` (por ejemplo después de probar la API a mano), el test de la versión por defecto falla. Hay que limpiar la variable con `Remove-Item Env:APP_VERSION`. Lección: los tests no deberían depender del entorno de la máquina.
+**Evidencia guardada:** docs/capturas/paso4-tests.png, docs/capturas/paso4-curl-version.png
+**Equivalente en ADO:** `APP_VERSION` por entorno ≈ variables por *stage/environment* o *variable groups*. Correr `dotnet test` localmente es lo mismo que haría la tarea `DotNetCoreCLI@2` (command: test), que en Jenkins se arma en el Paso 6.
