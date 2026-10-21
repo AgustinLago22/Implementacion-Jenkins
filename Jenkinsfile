@@ -18,6 +18,13 @@ pipeline {
         DOTNET_CLI_TELEMETRY_OPTOUT = 'true'
     }
 
+    triggers {
+        // Polling (pull): Jenkins le pregunta a GitHub cada ~2 minutos si hay commits nuevos,
+        // y solo dispara un build si los hay. "H" reparte el minuto exacto entre jobs para que
+        // no consulten todos a la vez.
+        pollSCM('H/2 * * * *')
+    }
+
     stages {
         stage('Saludo') {
             steps {
