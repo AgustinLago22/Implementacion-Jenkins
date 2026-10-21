@@ -96,5 +96,50 @@ pipeline {
                 sh "docker build -t hola-mundo:${env.BUILD_NUMBER} -t hola-mundo:${env.GIT_COMMIT.substring(0, 7)} ."
             }
         }
+
+        stage('Deploy Staging') {
+            steps {
+                // Reemplazo simple: se borra el contenedor anterior y se levanta uno con la imagen nueva.
+                // "|| true": en el primer deploy el contenedor no existe y rm daría error.
+                // (En producción se evita el corte con blue/green o rolling update.)
+                sh 'docker rm -f hola-mundo-staging || true'
+                // Misma imagen que saldría a producción; lo que cambia por entorno va en variables:
+                // APP_VERSION es el número de este build (build once, deploy many).
+                sh """
+                    docker run -d --name hola-mundo-staging \
+                        --network ci-local \
+                        -p 8081:8080 \
+                        -e APP_VERSION=${env.BUILD_NUMBER} \
+                        hola-mundo:${env.BUILD_NUMBER}
+                """
+            }
+        }
+
+        stage('Smoke Test') {
+            steps {
+                // Por nombre y puerto interno: Jenkins y staging comparten la red ci-local.
+                // La app tarda unos segundos en arrancar: curl reintenta antes de darla por caída.
+                // -f: un HTTP de error (4xx/5xx) también cuenta como fallo.
+                sh 'curl -fsS --retry 10 --retry-delay 2 --retry-all-errors -o respuesta.json http://hola-mundo-staging:8080/'
+                sh 'cat respuesta.json'
+                // No alcanza con que responda: tiene que ser la versión que se acaba de desplegar.
+                sh "grep -q '\"version\":\"${env.BUILD_NUMBER}\"' respuesta.json"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Staging actualizado: http://localhost:8081 responde con la versión ${env.BUILD_NUMBER}."
+        }
+        failure {
+            echo "El build #${env.BUILD_NUMBER} falló. Si falló antes de 'Deploy Staging', staging no se tocó y sigue con la versión anterior."
+        }
+        always {
+            // Cada build deja una imagen nueva. Se borran las de esta app que no usa ningún
+            // contenedor, es decir, todas menos la que corre en staging.
+            // En un entorno real las versiones viejas quedan en el registry, para poder volver atrás.
+            sh 'docker image prune -af --filter label=app=hola-mundo'
+        }
     }
 }

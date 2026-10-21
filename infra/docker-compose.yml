@@ -26,6 +26,16 @@ services:
       # grupo le da acceso al socket sin correr Jenkins como root.
       # En un Linux nativo suele ser el grupo "docker" (otro GID): DOCKER_GID=<gid> docker compose up -d
       - "${DOCKER_GID:-0}"
+    networks:
+      - ci-local
+
+networks:
+  # Red compartida con los contenedores que lanza el pipeline (staging): así Jenkins les habla
+  # por nombre (http://hola-mundo-staging:8080). Dentro de un contenedor, "localhost" es él mismo.
+  # external: se crea una vez a mano (docker network create ci-local). Si la creara Compose,
+  # un "down" intentaría borrarla mientras staging sigue conectado.
+  ci-local:
+    external: true
 
 volumes:
   jenkins_home:

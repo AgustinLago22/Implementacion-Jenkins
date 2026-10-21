@@ -17,6 +17,8 @@ RUN dotnet publish src/HolaMundo.Api/HolaMundo.Api.csproj -c Release -o /app --n
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app .
+# Identifica las imágenes de esta app: la limpieza del pipeline borra solo estas.
+LABEL app=hola-mundo
 
 # Las imágenes de .NET traen un usuario sin privilegios ($APP_UID): la app no corre como root.
 USER $APP_UID
