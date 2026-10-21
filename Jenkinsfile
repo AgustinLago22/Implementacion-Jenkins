@@ -6,9 +6,13 @@ pipeline {
 
     environment {
         // El contenedor del SDK corre con el usuario de Jenkins (UID 1000), que ahí adentro
-        // no tiene un home donde escribir: se le dan carpetas propias a la CLI y a NuGet.
+        // no tiene un home donde escribir: la CLI de .NET usa una carpeta temporal.
         DOTNET_CLI_HOME = '/tmp/dotnet-home'
-        NUGET_PACKAGES  = '/tmp/nuget-packages'
+        // La caché de NuGet NO puede ir en /tmp: cada stage corre en un contenedor nuevo y el
+        // /tmp del anterior desaparece. Sin la caché, Test no reconoce el proyecto de tests y
+        // no corre ninguno (bitácora, Paso 6). En el volumen jenkins_home la ven todos los
+        // contenedores (--volumes-from) y además sobrevive entre builds.
+        NUGET_PACKAGES  = '/var/jenkins_home/.nuget/packages'
         // Menos ruido en la consola: sin banner de bienvenida ni telemetría.
         DOTNET_NOLOGO               = 'true'
         DOTNET_CLI_TELEMETRY_OPTOUT = 'true'
