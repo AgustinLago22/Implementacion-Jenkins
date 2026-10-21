@@ -131,15 +131,19 @@ pipeline {
     post {
         success {
             echo "Staging actualizado: http://localhost:8081 responde con la versión ${env.BUILD_NUMBER}."
+            // Limpieza: cada build deja una imagen nueva. Se borran todas las etiquetas de esta app
+            // salvo las dos de este build (número y SHA); una imagen sin etiquetas se borra sola.
+            // Solo en success: si el build falla, staging sigue con la imagen anterior y no se toca nada.
+            // (No se usa "docker image prune -a": evalúa por etiqueta y le saca el SHA a la imagen en uso.)
+            // En un entorno real las versiones viejas quedan en el registry, para poder volver atrás.
+            sh """
+                docker images --filter label=app=hola-mundo --format '{{.Repository}}:{{.Tag}}' \
+                    | grep -v -e ':${env.BUILD_NUMBER}\$' -e ':${env.GIT_COMMIT.substring(0, 7)}\$' \
+                    | xargs -r docker rmi
+            """
         }
         failure {
             echo "El build #${env.BUILD_NUMBER} falló. Si falló antes de 'Deploy Staging', staging no se tocó y sigue con la versión anterior."
-        }
-        always {
-            // Cada build deja una imagen nueva. Se borran las de esta app que no usa ningún
-            // contenedor, es decir, todas menos la que corre en staging.
-            // En un entorno real las versiones viejas quedan en el registry, para poder volver atrás.
-            sh 'docker image prune -af --filter label=app=hola-mundo'
         }
     }
 }
