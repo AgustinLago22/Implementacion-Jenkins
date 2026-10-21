@@ -29,6 +29,30 @@ services:
     networks:
       - ci-local
 
+  tunel:
+    # Túnel público hacia Jenkins: la PC está detrás de NAT y GitHub no puede llegar a ella
+    # para mandar el webhook. ngrok da una URL pública fija y reenvía lo que llega por el túnel.
+    image: ngrok/ngrok:latest
+    container_name: tunel-ngrok
+    # Solo arranca con "docker compose --profile tunel up -d": quien no configuró ngrok
+    # puede levantar Jenkins igual.
+    profiles: ["tunel"]
+    restart: unless-stopped
+    # Token y dominio vienen de infra/.env (no se versiona; ver .env.example).
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    # "jenkins:8080": por la red ci-local, el túnel llega a Jenkins por nombre.
+    # --log stdout: sin una terminal interactiva ngrok no muestra nada; así sus logs salen en "docker logs".
+    command: http jenkins:8080 --url ${NGROK_URL} --traffic-policy-file /etc/ngrok/politica.yml --log stdout
+    volumes:
+      - ./ngrok/politica.yml:/etc/ngrok/politica.yml:ro
+    ports:
+      - "4040:4040"   # inspector local: muestra cada request que entra por el túnel
+    networks:
+      - ci-local
+    depends_on:
+      - jenkins
+
 networks:
   # Red compartida con los contenedores que lanza el pipeline (staging): así Jenkins les habla
   # por nombre (http://hola-mundo-staging:8080). Dentro de un contenedor, "localhost" es él mismo.

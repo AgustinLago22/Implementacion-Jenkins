@@ -19,9 +19,11 @@ pipeline {
     }
 
     triggers {
-        // Polling (pull): Jenkins le pregunta a GitHub cada ~2 minutos si hay commits nuevos,
-        // y solo dispara un build si los hay. "H" reparte el minuto exacto entre jobs para que
-        // no consulten todos a la vez.
+        // Webhook (push): GitHub avisa en /github-webhook/ (por el túnel) apenas llega un push.
+        githubPush()
+        // Polling (pull), como respaldo si el túnel se cae: Jenkins le pregunta a GitHub cada
+        // ~2 minutos si hay commits nuevos. "H" reparte el minuto exacto entre jobs.
+        // En un entorno real, con webhook confiable, se espacia mucho más o se quita.
         pollSCM('H/2 * * * *')
     }
 
