@@ -20,5 +20,14 @@ pipeline {
                 sh 'ls -la'
             }
         }
+
+        stage('Docker disponible') {
+            steps {
+                // Client = el CLI instalado en la imagen de Jenkins.
+                // Server = el daemon de la PC, alcanzado por el socket montado.
+                // Si falta el socket o el permiso, este stage falla y corta el pipeline.
+                sh 'docker version'
+            }
+        }
     }
 }

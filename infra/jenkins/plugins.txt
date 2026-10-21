@@ -1,0 +1,17 @@
+# Plugins preinstalados en la imagen. Formato: <id> o <id>:<versión>.
+# Sin versión se instala la última compatible; en un entorno real se fijan versiones
+# para que la imagen sea 100% reproducible.
+
+# Pipeline: Jenkinsfile, stages, steps.
+workflow-aggregator
+# Checkout de repos Git.
+git
+# Integración con GitHub (webhook del Paso 9).
+github
+# agent { docker { ... } } y comandos docker desde el pipeline (Paso 6).
+docker-workflow
+# Publica resultados de tests (Paso 6).
+junit
+# Vista gráfica de stages. Se usa en lugar de pipeline-stage-view porque es la que
+# trae hoy el asistente de Jenkins.
+pipeline-graph-view

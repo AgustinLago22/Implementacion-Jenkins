@@ -2,9 +2,10 @@
 # Levantar desde esta carpeta con: docker compose up -d
 services:
   jenkins:
-    # Imagen oficial, rama LTS (estable) con Java 21.
-    # LTS en lugar de "weekly" porque para una demo importa más la estabilidad que lo último.
-    image: jenkins/jenkins:lts-jdk21
+    # Imagen propia (infra/jenkins/Dockerfile): la oficial LTS + Docker CLI + plugins.txt.
+    # Se construye con "docker compose build"; "image" le pone nombre a lo que se construye.
+    build: ./jenkins
+    image: jenkins-hola-mundo:local
     container_name: jenkins
     # Si se reinicia Docker Desktop, Jenkins vuelve solo (salvo que lo frenemos a mano).
     restart: unless-stopped
@@ -15,6 +16,16 @@ services:
       # JENKINS_HOME guarda TODO el estado del controller: jobs, builds, plugins, usuarios.
       # Va en un volumen para que sobreviva a borrar y recrear el contenedor.
       - jenkins_home:/var/jenkins_home
+      # Socket del daemon de Docker de la PC: con esto el CLI de Jenkins maneja ese daemon,
+      # y los contenedores que lance nacen AL LADO de Jenkins, no adentro.
+      # RIESGO: quien usa este socket controla todo el Docker de la PC (equivale a ser root).
+      # Aceptable en el laboratorio; en una empresa se usan agentes aislados.
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      # El socket es srw-rw---- de root:root (GID 0) en Docker Desktop. Sumar a "jenkins" a ese
+      # grupo le da acceso al socket sin correr Jenkins como root.
+      # En un Linux nativo suele ser el grupo "docker" (otro GID): DOCKER_GID=<gid> docker compose up -d
+      - "${DOCKER_GID:-0}"
 
 volumes:
   jenkins_home:
