@@ -1,0 +1,9 @@
+# Lo que NO se manda al "docker build".
+# bin/ y obj/ son críticos: en el workspace de Jenkins existen (los dejó el stage Build) y
+# obj/ apunta a la caché de NuGet del volumen, que no existe dentro de la etapa de compilación.
+**/bin/
+**/obj/
+**/TestResults/
+.git/
+docs/
+infra/

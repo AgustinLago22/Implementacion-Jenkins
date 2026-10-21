@@ -86,5 +86,15 @@ pipeline {
                 }
             }
         }
+
+        stage('Docker Image') {
+            steps {
+                // Corre en el controller: el CLI de Docker le manda el workspace (el "contexto")
+                // al daemon de la PC, que construye la imagen.
+                // Dos etiquetas para el mismo artefacto: el número de build (qué build lo produjo)
+                // y el SHA corto (qué commit tiene adentro).
+                sh "docker build -t hola-mundo:${env.BUILD_NUMBER} -t hola-mundo:${env.GIT_COMMIT.substring(0, 7)} ."
+            }
+        }
     }
 }
