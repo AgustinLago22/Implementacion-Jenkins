@@ -104,3 +104,30 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Riesgo de seguridad (para el análisis crítico):** quien usa el socket controla todo el Docker de la PC. Un pipeline podría lanzar un contenedor que monte el disco del host, así que en la práctica equivale a acceso root. Se acepta en el laboratorio. En una empresa se usan agentes aislados, Docker-in-Docker o herramientas sin daemon (Kaniko, Buildah).
 **Evidencia guardada:** docs/capturas/paso5-docker-version-consola.png, docs/capturas/paso5-stages.png, docs/capturas/paso5-socket-permisos.png, docs/capturas/paso5-plugins-docker.png, infra/jenkins/Dockerfile, infra/jenkins/plugins.txt
 **Equivalente en ADO:** un agente *Microsoft-hosted* ya trae Docker. En un agente *self-hosted* hay que instalarlo y darle permiso al usuario del agente sobre el socket, que es el mismo problema. `plugins.txt` ≈ la lista de extensiones del Marketplace instaladas en la organización, pero versionada. El "contrato" entre pipeline y agente ≈ *demands* (pipeline) y *capabilities* (agente).
+
+---
+
+## Paso 6 — CI: build y tests en contenedor (2026-10-21)
+**Qué se hizo:**
+- `Jenkinsfile`: stages `Build` (`dotnet build -c Release`) y `Test` (`dotnet test --no-build`), cada uno con `agent { docker { image 'mcr.microsoft.com/dotnet/sdk:10.0'; reuseNode true } }`. `junit` en un `post { always }` del stage Test.
+- `HolaMundo.Tests.csproj`: paquete `JunitXml.TestLogger` 8.0.0, que genera el reporte en formato JUnit XML.
+- Bloque `environment` con `DOTNET_CLI_HOME`, `NUGET_PACKAGES`, `DOTNET_NOLOGO` y `DOTNET_CLI_TELEMETRY_OPTOUT`.
+**Decisiones y por qué:**
+- **Agentes efímeros:** Jenkins no tiene .NET. Cada stage crea un contenedor del SDK con `docker run` (a través del socket del Paso 5) y lo borra al terminar. Cambiar de versión de .NET es cambiar una línea, sin tocar Jenkins.
+- **`reuseNode true`:** los contenedores usan el mismo workspace que el pipeline, así que no se vuelve a clonar y Test encuentra lo que compiló Build.
+- **Cómo ve el contenedor el workspace:** el contenedor del SDK nace al lado de Jenkins, no dentro. El plugin `docker-workflow` detecta que Jenkins corre en un contenedor (`Jenkins seems to be running inside container ...`) y le pasa `--volumes-from <jenkins>`, así el SDK ve `/var/jenkins_home/workspace/hola-mundo` con la misma ruta.
+- **`-u 1000:1000`:** el plugin corre el contenedor con el UID de Jenkins para que los archivos generados en el workspace le pertenezcan. Ese usuario no tiene home en la imagen del SDK, por eso `DOTNET_CLI_HOME=/tmp/dotnet-home`.
+- **`--no-build` en Test:** se prueba exactamente lo que compiló Build.
+- **`junit` estricto** (sin `allowEmptyResults`): si no hay reporte, el build falla. Esto atajó el problema 1.
+- **`rm -rf TestResults` antes de testear:** el workspace se reutiliza entre builds, y así no se publican resultados viejos.
+- **Bug a propósito en el código, no en el test:** la demo muestra un bug atajado, no un test mal escrito.
+**Problemas y cómo se resolvieron:**
+1. **Build #3: "verde falso" atajado por `junit`.** Con `NUGET_PACKAGES=/tmp/nuget-packages`, `dotnet test` terminó sin error y sin ejecutar ningún test. `junit` falló con `No test report files were found. Configuration error?`. Causa: Build descargó los paquetes en el `/tmp` de *su* contenedor, que se borró al terminar el stage. Test arrancó en un contenedor nuevo con `/tmp` vacío. Los archivos de `obj/` (`*.nuget.g.props`) apuntaban a la caché inexistente, y .NET ignora en silencio esos imports si no existen. Así `HolaMundo.Tests` dejó de ser reconocido como proyecto de tests (lo marca un `.props` de `Microsoft.NET.Test.Sdk`), y no había nada que correr. Solución: `NUGET_PACKAGES=/var/jenkins_home/.nuget/packages`, dentro del volumen, visible para todos los contenedores vía `--volumes-from`. Lección: en un agente efímero, lo que no está en el workspace o en un volumen desaparece entre stages. Sin `junit` estricto, el build habría quedado en verde con cero tests.
+2. **Efecto secundario positivo, la caché persistente:** el restore del proyecto de tests pasó de unos 4 s a `All projects are up-to-date for restore`, y el stage Build de 9 s a unos 2,5-5,5 s.
+3. **Builds #5 y #6 en verde "con el bug":** el cambio en `Program.cs` no se había guardado, así que no hubo commit ni push, y Jenkins construyó otra vez `a4d5493`. Lección: lo primero que se mira en un build es qué commit construyó (`Checking out Revision` / `Commit message`). Antes de pushear, `git diff`.
+**Verificación:**
+- Build #4 (`a4d5493`): verde, `Passed: 3`. El reporte de tests aparece en `/job/hola-mundo/4/testReport/`.
+- Build #7 (`c92bc7d`, bug `"dev"` → `"desarrollo"`): Build verde y Test rojo, `Expected: "dev"` / `Actual: "desarrollo"`, `Failed: 1, Passed: 2`, `ERROR: script returned exit code 1`. `junit` publicó el fallo igual.
+- Build #8 (`775de51`, corrección): verde otra vez.
+**Evidencia guardada:** docs/capturas/paso6-error-sin-tests.png, docs/capturas/paso6-stages-rojo-cache.png, docs/capturas/paso6-causa-cache-tmp.png, docs/capturas/paso6-agente-efimero.png, docs/capturas/paso6-test-results-verde.png, docs/capturas/paso6-stages-verde.png, docs/capturas/paso6-consola-test-rojo.png, docs/capturas/paso6-test-results-rojo.png, docs/capturas/paso6-stages-rojo.png, docs/capturas/paso6-tendencia-tests.png
+**Equivalente en ADO:** `agent { docker { image ... } }` ≈ `container:` en un job. `dotnet test` con el logger JUnit más `junit` ≈ `DotNetCoreCLI@2` (command: test) con `publishTestResults: true`, o la tarea `PublishTestResults@2`, más la pestaña *Tests* del run. `post { always }` ≈ `condition: always()`. La caché de NuGet en el volumen ≈ la tarea `Cache@2`. Que un test fallido corte el pipeline es igual en ADO: la tarea falla y los stages siguientes no corren salvo que tengan otra `condition:`.

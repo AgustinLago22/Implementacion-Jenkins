@@ -266,10 +266,13 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 6 — CI: build y tests en contenedor (pendiente de confirmación para arrancar)
-- **Pasos completados:** 0, 1, 2, 3, 4, 5
+- **Paso actual:** 7 — Imagen Docker de la app (pendiente de confirmación para arrancar)
+- **Pasos completados:** 0, 1, 2, 3, 4, 5, 6
 - **Notas:**
   - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080 en la PC de un integrante: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
   - Cada integrante ya tiene su propio Jenkins. Después de un `git pull` que toque `infra/jenkins/`, hay que correr `docker compose build` y `docker compose up -d`: el `Jenkinsfile` se lee de GitHub y puede pedir herramientas que la imagen vieja no tiene.
   - Ni el Docker CLI ni los plugins tienen versión fija: la imagen no es 100% reproducible. Queda como mejora para el informe.
   - Evaluar adelantar el 10b (JCasC), para que un integrante nuevo no repita el asistente a mano.
+  - Los agentes efímeros solo comparten lo que está en el workspace o en el volumen: la caché de NuGet vive en `/var/jenkins_home/.nuget/packages`. Tenerlo en cuenta en el paso 7 si se agregan stages con contenedores.
+  - Los stages `Info del build` y `Docker disponible` son de diagnóstico. Proponer sacarlos o unificarlos antes de la demo (paso 8 u 11), para que la vista de stages quede limpia.
+  - Antes de pushear en la demo: `git diff`. Un archivo sin guardar hizo construir el commit viejo (builds #5 y #6).
