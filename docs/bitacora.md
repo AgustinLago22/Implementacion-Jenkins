@@ -131,3 +131,24 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 - Build #8 (`775de51`, corrección): verde otra vez.
 **Evidencia guardada:** docs/capturas/paso6-error-sin-tests.png, docs/capturas/paso6-stages-rojo-cache.png, docs/capturas/paso6-causa-cache-tmp.png, docs/capturas/paso6-agente-efimero.png, docs/capturas/paso6-test-results-verde.png, docs/capturas/paso6-stages-verde.png, docs/capturas/paso6-consola-test-rojo.png, docs/capturas/paso6-test-results-rojo.png, docs/capturas/paso6-stages-rojo.png, docs/capturas/paso6-tendencia-tests.png
 **Equivalente en ADO:** `agent { docker { image ... } }` ≈ `container:` en un job. `dotnet test` con el logger JUnit más `junit` ≈ `DotNetCoreCLI@2` (command: test) con `publishTestResults: true`, o la tarea `PublishTestResults@2`, más la pestaña *Tests* del run. `post { always }` ≈ `condition: always()`. La caché de NuGet en el volumen ≈ la tarea `Cache@2`. Que un test fallido corte el pipeline es igual en ADO: la tarea falla y los stages siguientes no corren salvo que tengan otra `condition:`.
+
+---
+
+## Paso 7 — Imagen Docker de la app (2026-10-21)
+**Qué se hizo:**
+- `Dockerfile` multi-stage en la raíz: etapa `build` con `sdk:10.0` (`restore` y después `publish`) y etapa final con `aspnet:10.0`, que solo copia lo publicado. Corre como `USER $APP_UID` y expone el 8080.
+- `.dockerignore`: excluye `bin/`, `obj/`, `TestResults/`, `.git/`, `docs/` e `infra/`.
+- `Jenkinsfile`: stage `Docker Image` con `docker build -t hola-mundo:${BUILD_NUMBER} -t hola-mundo:<sha corto> .`.
+**Decisiones y por qué:**
+- **Multi-stage:** el compilador (SDK) no viaja en la imagen que se entrega.
+- **Primero el `.csproj` y el `restore`, después el código:** si solo cambia el código (acto 1 de la demo), Docker reutiliza la capa del restore.
+- **Dos etiquetas para el mismo artefacto:** el número de build (qué build lo produjo) y el SHA corto (qué commit contiene). La imagen es inmutable: un cambio genera una imagen nueva, no modifica la anterior.
+- **Sin `APP_VERSION` en la imagen:** se lo pone cada entorno al levantar el contenedor (*build once, deploy many*, Paso 4).
+- **`.dockerignore` con `bin/` y `obj/`:** en el workspace de Jenkins existen (los deja el stage Build) y `obj/` apunta a la caché de NuGet del volumen, que no existe dentro de la etapa de compilación. Es el mismo tipo de problema que el build #3 del Paso 6.
+- **El stage corre en el controller, sin `--volumes-from`:** `docker build` le envía el contexto (los archivos) al daemon por el socket, así que no importa que el daemon no vea las carpetas de Jenkins. Contraste con el Paso 6, donde el contenedor del SDK necesitaba montar el workspace.
+- **Trade-off:** la imagen recompila el mismo commit en lugar de reutilizar lo que compiló el stage Build. El `Dockerfile` queda autónomo (funciona en cualquier máquina, sin Jenkins). La alternativa, copiar a la imagen lo ya compilado, es más estricta con *build once*, pero ata el `Dockerfile` al pipeline.
+**Problemas y cómo se resolvieron:** ninguno.
+**Verificación:** build #9 (`6d91881`) en verde. `docker images hola-mundo` muestra `hola-mundo:9` y `hola-mundo:6d91881` con el mismo ID (`f43b18d21769`): una imagen con dos etiquetas. Ocupa 340 MB en disco y 96 MB comprimida.
+**Qué faltaría en un entorno real:** `docker push` a un registry (Docker Hub, ACR) con una credencial guardada en Jenkins, y una política para borrar las imágenes viejas.
+**Evidencia guardada:** docs/capturas/paso7-docker-build-consola.png, docs/capturas/paso7-docker-images.png, docs/capturas/paso7-stages.png, Dockerfile, .dockerignore
+**Equivalente en ADO:** la tarea `Docker@2` con `command: build` y `tags: $(Build.BuildId)`. El push sería `command: push` con una *service connection* al registry. `${GIT_COMMIT}` ≈ `$(Build.SourceVersion)`.
