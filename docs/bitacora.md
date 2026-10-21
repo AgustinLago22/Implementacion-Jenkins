@@ -152,3 +152,27 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Qué faltaría en un entorno real:** `docker push` a un registry (Docker Hub, ACR) con una credencial guardada en Jenkins, y una política para borrar las imágenes viejas.
 **Evidencia guardada:** docs/capturas/paso7-docker-build-consola.png, docs/capturas/paso7-docker-images.png, docs/capturas/paso7-stages.png, Dockerfile, .dockerignore
 **Equivalente en ADO:** la tarea `Docker@2` con `command: build` y `tags: $(Build.BuildId)`. El push sería `command: push` con una *service connection* al registry. `${GIT_COMMIT}` ≈ `$(Build.SourceVersion)`.
+
+---
+
+## Paso 8 — Deploy a staging y smoke test (2026-10-21)
+**Qué se hizo:**
+- `Jenkinsfile`: stage `Deploy Staging` (`docker rm -f hola-mundo-staging || true` y `docker run -d --name hola-mundo-staging --network ci-local -p 8081:8080 -e APP_VERSION=${BUILD_NUMBER} hola-mundo:${BUILD_NUMBER}`), stage `Smoke Test` (`curl` con reintentos más `grep` de la versión) y bloque `post` con `success` (mensaje y limpieza de imágenes) y `failure` (mensaje).
+- `infra/docker-compose.yml`: Jenkins conectado a la red externa `ci-local`, creada una vez con `docker network create ci-local`.
+- `Dockerfile`: `LABEL app=hola-mundo`, para que la limpieza toque solo las imágenes de esta app.
+**Decisiones y por qué:**
+- **Red compartida en lugar de `host.docker.internal`:** el smoke test corre dentro del contenedor de Jenkins, donde `localhost` es Jenkins. Con los dos contenedores en `ci-local`, Jenkins llama a staging por nombre y puerto interno (`http://hola-mundo-staging:8080`). Funciona igual en cualquier Docker, mientras que `host.docker.internal` es propio de Docker Desktop.
+- **Red `external`:** si la creara Compose, un `docker compose down` intentaría borrarla con staging todavía conectado.
+- **Orden del cambio:** primero se creó la red y se recreó Jenkins, y después se pusheó el `Jenkinsfile` que la usa (lección del Paso 5: la infraestructura antes que el pipeline).
+- **Reemplazo simple del contenedor** (`rm` y después `run`): hay unos segundos de corte. En producción se evita con blue/green o rolling update.
+- **`APP_VERSION=${BUILD_NUMBER}` al levantar el contenedor:** la imagen es la misma para cualquier entorno, y la versión la pone el deploy (*build once, deploy many*).
+- **Smoke test más estricto que el plan:** además del 200 (`curl -f`), verifica con `grep` que la versión devuelta sea la del build. Si siguiera corriendo el contenedor viejo, también respondería 200. `--retry 10 --retry-delay 2 --retry-all-errors`, porque la app tarda un par de segundos en arrancar.
+- **Limpieza solo en `success` (cambio respecto del plan, que decía `always`):** si el build falla, staging sigue con la imagen anterior y conviene no tocar nada. Además, todo queda disponible para investigar.
+**Problemas y cómo se resolvieron:**
+1. **`docker image prune -a` le sacaba la etiqueta del SHA a la imagen desplegada** (build #10: `untagged: hola-mundo:5a16554`, `Total reclaimed space: 0B`). Con el almacén de imágenes de Docker Desktop (containerd), prune evalúa "en uso" por etiqueta: staging se levantó con `hola-mundo:10`, así que `hola-mundo:5a16554` (la misma imagen) se consideró sin uso. Se perdía la trazabilidad imagen → commit del Paso 7. Solución: listar las etiquetas de la app (`docker images --filter label=app=hola-mundo`), excluir las dos del build actual con `grep -v` y pasarle el resto a `docker rmi`. Una imagen que se queda sin etiquetas se borra sola. Verificado en el build #11: `Untagged: hola-mundo:10` y `Deleted`, y `hola-mundo:11` / `hola-mundo:2791879` intactas.
+2. (Menor) Se esperaba un `No such container` en el primer `docker rm -f`, pero Docker 29 no lo muestra con `-f`. El `|| true` queda como protección para versiones viejas.
+3. (Menor) En Windows PowerShell 5.1, `curl` es un alias de `Invoke-WebRequest`. Para probar staging desde la PC hay que usar `curl.exe`.
+**Observación:** en el build #10 todos los pasos del `docker build` salieron `CACHED` (la API no cambió desde el #9) y la imagen se construyó en 0,3 s. Es la caché de capas del Paso 7 funcionando.
+**Verificación:** build #11 (`2791879`) completo en verde. El smoke test devolvió `{"mensaje":"Hola mundo desde Jenkins","version":"11"}`, y `curl.exe http://localhost:8081` desde la PC devuelve lo mismo.
+**Evidencia guardada:** docs/capturas/paso8-deploy-smoke-consola.png, docs/capturas/paso8-stages-completo.png, docs/capturas/paso8-curl-staging.png
+**Equivalente en ADO:** `Deploy Staging` ≈ un *deployment job* con `environment: staging`. El smoke test ≈ un paso de script después del deploy. `post { success }` / `post { failure }` / `post { always }` ≈ `condition: succeeded()` / `failed()` / `always()`. La red compartida no tiene equivalente directo: en ADO, el agente y el destino del deploy suelen comunicarse por la red de la nube.
