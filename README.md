@@ -28,7 +28,7 @@ GitHub ──webhook──> túnel ──> Jenkins (contenedor)
 | Ruta | Contenido |
 |---|---|
 | `docs/bitacora.md` | Decisiones y problemas, paso a paso |
-| `docs/capturas/` | Evidencia para el informe |
+| `docs/capturas/` | Vacía: las capturas del informe están en un documento compartido del grupo |
 
 La estructura crece a medida que avanza el proyecto (app, `Jenkinsfile`, `infra/`).
 

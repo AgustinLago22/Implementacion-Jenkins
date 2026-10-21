@@ -2,6 +2,8 @@
 
 Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas encontrados. Alimenta la sección "Caso práctico" del informe.
 
+> **Capturas:** no se versionan en el repo. Están en el Google Doc compartido del grupo, con su descripción. Las rutas `docs/capturas/pasoN-*.png` que aparecen abajo son los nombres que identifican cada figura en ese documento.
+
 ---
 
 ## Paso 0 — Preparación del repo (2026-10-20)
@@ -78,3 +80,27 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Problemas y cómo se resolvieron:** ninguno. Riesgo detectado: si en la terminal queda definida `APP_VERSION` (por ejemplo después de probar la API a mano), el test de la versión por defecto falla. Hay que limpiar la variable con `Remove-Item Env:APP_VERSION`. Lección: los tests no deberían depender del entorno de la máquina.
 **Evidencia guardada:** docs/capturas/paso4-tests.png, docs/capturas/paso4-curl-version.png
 **Equivalente en ADO:** `APP_VERSION` por entorno ≈ variables por *stage/environment* o *variable groups*. Correr `dotnet test` localmente es lo mismo que haría la tarea `DotNetCoreCLI@2` (command: test), que en Jenkins se arma en el Paso 6.
+
+---
+
+## Paso 5 — Darle a Jenkins acceso a Docker (2026-10-21)
+**Qué se hizo:**
+- `infra/jenkins/Dockerfile`: parte de `jenkins/jenkins:lts-jdk21` e instala `docker-ce-cli` y `docker-buildx-plugin` desde el repo oficial de Docker. También instala los plugins de `plugins.txt` con `jenkins-plugin-cli`.
+- `infra/jenkins/plugins.txt`: `workflow-aggregator`, `git`, `github`, `docker-workflow`, `junit`, `pipeline-graph-view`.
+- `infra/docker-compose.yml`: pasa de `image:` a `build: ./jenkins` (imagen `jenkins-hola-mundo:local`), monta `/var/run/docker.sock` y agrega `group_add`.
+- `Jenkinsfile`: stage `Docker disponible` con `sh 'docker version'`.
+**Decisiones y por qué:**
+- **Socket montado en lugar de Docker-in-Docker.** Es más simple y no requiere un contenedor *privileged*. Además, los contenedores que lanza Jenkins (SDK, staging) nacen al lado de Jenkins en el Docker de la PC, así que staging queda accesible en `localhost:8081`. Con DinD quedarían dentro de otro daemon.
+- **Solo el cliente de Docker en la imagen.** El daemon sigue siendo el de la PC. Prueba: `docker version` desde Jenkins muestra el mismo Server (`Docker Desktop 4.72.0`, commit `d329809`) que desde PowerShell.
+- **Permisos con `group_add` en lugar de `user: root`.** `ls -ln` del socket dio `srw-rw---- 0 0`: dueño root, grupo root (GID 0), lectura y escritura para el grupo. El usuario `jenkins` (UID 1000) no tenía acceso. Se sumó a `jenkins` al grupo 0 (`id` → `groups=1000(jenkins),0(root)`): accede al socket sin correr como root. El GID queda parametrizado (`${DOCKER_GID:-0}`), porque en un Linux nativo el socket suele ser del grupo `docker`, con otro GID.
+- **Orden de capas:** el `apt` va antes del `COPY plugins.txt`. Cambiar la lista de plugins no reinstala el CLI, y si falla el mirror, reintentar el build solo repite la última capa. Además, `jenkins-plugin-cli` reintenta 3 veces por la falla intermitente del mirror (Paso 1).
+- `pipeline-graph-view` en lugar de `pipeline-stage-view`: es la vista que trae hoy el asistente.
+- `docker-buildx-plugin` se incluyó ahora porque es parte de un CLI completo, aunque `docker build` se use recién en el Paso 7.
+**Problemas y cómo se resolvieron:** no hubo errores. Observaciones:
+1. **La imagen no es 100% reproducible:** el CLI y los plugins no tienen versión fija. Se instaló el CLI 29.9.2 (más nuevo que el daemon, 29.4.2), que negocia la API hacia abajo (`API version: 1.54 (downgraded from 1.56)`). Hoy funciona, pero otro integrante podría obtener otra versión. En un entorno real se fijan las versiones.
+2. **Plugins y volumen existente:** los plugins de la imagen van a `/usr/share/jenkins/ref/plugins`, y Jenkins solo copia a `JENKINS_HOME` los que todavía no tiene. Con un volumen ya inicializado, `plugins.txt` agrega los que faltan, pero no actualiza ni quita los que ya están.
+3. **Contrato entre pipeline e infraestructura:** el job lee el `Jenkinsfile` desde GitHub. Al pushear el stage `Docker disponible`, el Jenkins del otro integrante (todavía con la imagen vieja) falla con `docker: not found` hasta que reconstruye su imagen. Lección: primero se actualiza la infraestructura y después el pipeline que la necesita.
+**Verificación:** build #2 de `hola-mundo` (commit `9dadae9`) en verde. El stage `Docker disponible` muestra Client (`29.9.2`, `linux/amd64`) y Server (`Docker Desktop 4.72.0`).
+**Riesgo de seguridad (para el análisis crítico):** quien usa el socket controla todo el Docker de la PC. Un pipeline podría lanzar un contenedor que monte el disco del host, así que en la práctica equivale a acceso root. Se acepta en el laboratorio. En una empresa se usan agentes aislados, Docker-in-Docker o herramientas sin daemon (Kaniko, Buildah).
+**Evidencia guardada:** docs/capturas/paso5-docker-version-consola.png, docs/capturas/paso5-stages.png, docs/capturas/paso5-socket-permisos.png, docs/capturas/paso5-plugins-docker.png, infra/jenkins/Dockerfile, infra/jenkins/plugins.txt
+**Equivalente en ADO:** un agente *Microsoft-hosted* ya trae Docker. En un agente *self-hosted* hay que instalarlo y darle permiso al usuario del agente sobre el socket, que es el mismo problema. `plugins.txt` ≈ la lista de extensiones del Marketplace instaladas en la organización, pero versionada. El "contrato" entre pipeline y agente ≈ *demands* (pipeline) y *capabilities* (agente).

@@ -85,7 +85,7 @@ jenkins-hola-mundo/
 ├── ado/azure-pipelines.yml     # (extra) mismo pipeline en ADO, para comparar
 ├── docs/
 │   ├── bitacora.md             # decisiones y problemas, paso a paso
-│   └── capturas/               # evidencia para el informe
+│   └── capturas/               # vacía: las capturas viven en el Google Doc del grupo
 ├── .gitattributes
 ├── .gitignore
 └── README.md
@@ -235,7 +235,7 @@ Cada extra se trata como un paso propio, de a uno.
 **Qué se hizo:** ...
 **Decisiones y por qué:** ...
 **Problemas y cómo se resolvieron:** ...
-**Evidencia guardada:** docs/capturas/...
+**Evidencia guardada:** docs/capturas/... (nombre de la figura en el Google Doc del grupo)
 **Equivalente en ADO:** ...
 ```
 
@@ -266,10 +266,10 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 5 — Darle a Jenkins acceso a Docker (pendiente de confirmación para arrancar)
-- **Pasos completados:** 0, 1, 2, 3, 4
+- **Paso actual:** 6 — CI: build y tests en contenedor (pendiente de confirmación para arrancar)
+- **Pasos completados:** 0, 1, 2, 3, 4, 5
 - **Notas:**
-  - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
-  - El mirror de plugins `ftp-nyc.osuosl.org` falla de forma intermitente desde esta red. En el paso 5, prever reintentos o un mirror alternativo para `jenkins-plugin-cli`.
-  - Este Jenkins trae **Pipeline Graph View** (no Stage View). En el paso 5, proponer `pipeline-graph-view` en lugar de `pipeline-stage-view` en `plugins.txt`.
-  - Evaluar adelantar el 10b (JCasC) después del paso 5, para que el otro integrante no repita el asistente a mano.
+  - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080 en la PC de un integrante: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
+  - Cada integrante ya tiene su propio Jenkins. Después de un `git pull` que toque `infra/jenkins/`, hay que correr `docker compose build` y `docker compose up -d`: el `Jenkinsfile` se lee de GitHub y puede pedir herramientas que la imagen vieja no tiene.
+  - Ni el Docker CLI ni los plugins tienen versión fija: la imagen no es 100% reproducible. Queda como mejora para el informe.
+  - Evaluar adelantar el 10b (JCasC), para que un integrante nuevo no repita el asistente a mano.
