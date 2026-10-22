@@ -4,5 +4,5 @@ namespace HolaMundo.Api;
 public record Saludo(string Mensaje, string Version)
 {
     // Acto 1 de la demo: cambiar este texto, hacer push y verlo en staging.
-    public const string MensajeActual = "Hola mundo desde Jenkins, disparado por polling";
+    public const string MensajeActual = "Hola mundo desde Jenkins, disparado por webhook";
 }
