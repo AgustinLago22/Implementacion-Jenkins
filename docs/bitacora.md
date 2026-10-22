@@ -176,3 +176,33 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Verificación:** build #11 (`2791879`) completo en verde. El smoke test devolvió `{"mensaje":"Hola mundo desde Jenkins","version":"11"}`, y `curl.exe http://localhost:8081` desde la PC devuelve lo mismo.
 **Evidencia guardada:** docs/capturas/paso8-deploy-smoke-consola.png, docs/capturas/paso8-stages-completo.png, docs/capturas/paso8-curl-staging.png
 **Equivalente en ADO:** `Deploy Staging` ≈ un *deployment job* con `environment: staging`. El smoke test ≈ un paso de script después del deploy. `post { success }` / `post { failure }` / `post { always }` ≈ `condition: succeeded()` / `failed()` / `always()`. La red compartida no tiene equivalente directo: en ADO, el agente y el destino del deploy suelen comunicarse por la red de la nube.
+
+---
+
+## Paso 9 — Disparo automático por push (2026-10-22)
+**Qué se hizo:**
+- **Polling primero:** `triggers { pollSCM('H/2 * * * *') }` en el `Jenkinsfile`. Jenkins le pregunta a GitHub cada ~2 minutos (`git ls-remote`) si la rama tiene commits nuevos.
+- **Webhook después:** `githubPush()` en `triggers`, con el polling como respaldo.
+- **Túnel ngrok como servicio `tunel` en `infra/docker-compose.yml`:** con `profiles: ["tunel"]`, solo arranca con `docker compose --profile tunel up -d`. Llega a Jenkins por nombre (`http jenkins:8080`) a través de la red `ci-local`.
+- **Configuración del túnel:**
+  - token y dominio fijo en `infra/.env`, que no se versiona; `infra/.env.example` sirve de plantilla;
+  - política de tráfico en `infra/ngrok/politica.yml`.
+- **Webhook en GitHub:** apunta a `https://comfortably-numeric-antonetta.ngrok-free.dev/github-webhook/` (`application/json`, solo el evento push).
+**Decisiones y por qué:**
+- **Polling antes que webhook:** no necesita nada expuesto a internet, así que sirve para probar el disparo automático sin depender del túnel. Después queda como plan B: si el túnel se cae, el build arranca igual, solo que con hasta 2 minutos de demora. La `H` reparte el minuto exacto entre jobs, para que no le pregunten todos a GitHub al mismo tiempo.
+- **Por qué hace falta un túnel:** la PC está detrás de NAT. GitHub no tiene una dirección a la que mandarle el aviso. El túnel es una conexión saliente desde la PC hacia ngrok, y ngrok reenvía por ella lo que llega a la URL pública.
+- **Dominio estático de ngrok** (gratuito, `.ngrok-free.dev`): si la URL cambiara en cada reinicio, habría que editar el webhook en GitHub cada vez.
+- **Política de tráfico:** todo lo que no empiece con `/github-webhook` recibe un 404 (`No disponible`) en ngrok, sin llegar a Jenkins. Así la UI, el login y la API de Jenkins no quedan expuestos a internet. Prueba: `curl.exe https://…/` devolvió `No disponible`, y `curl.exe https://…/github-webhook/` devolvió una página de error de Jenkins. Ese error es esperable: el endpoint espera el POST con el JSON de GitHub y recibió un GET vacío; la página prueba que el pedido atravesó el túnel.
+- **Túnel en un perfil de Compose:** un integrante que no configuró ngrok puede levantar Jenkins igual con `docker compose up -d`.
+- **El authtoken nunca pasó por el chat ni por el repo:** se escribió a mano en `infra/.env` (verificado con `git check-ignore`).
+**Problemas y cómo se resolvieron:**
+1. **Los triggers se registran recién después de un build:** el job lee el `Jenkinsfile` de GitHub recién cuando corre. Por eso, después de agregar `pollSCM` hubo que lanzar un build manual (#12) para que Jenkins empezara a hacer polling. Recién entonces el build #13 se disparó solo ("Started by an SCM change"). Con `githubPush()` pasó lo mismo: el build #14 (por polling) lo registró, y recién ahí el #15 llegó por webhook. El Git Polling Log del #13 muestra cómo decide Jenkins: compara el último commit remoto con el último construido.
+2. **El túnel arrancaba pero `docker logs tunel-ngrok` estaba vacío:** sin una terminal interactiva, ngrok no imprime nada. Se agregó `--log stdout` al comando. A partir de ahí se ve `started tunnel ... url=https://comfortably-numeric-antonetta.ngrok-free.dev`.
+3. **Inestabilidad del smoke test (build #12):** el primer `curl` falló (`curl: (7) ... after 1 ms`) porque la app todavía no escuchaba. El segundo intento respondió bien. Es el caso para el que se pusieron los `--retry` en el Paso 8: sin ellos, el build habría quedado rojo sin que la app tuviera ningún problema.
+4. (Menor) Se esperaba un dominio `.ngrok-free.app`. Los dominios gratuitos actuales son `.ngrok-free.dev`.
+**Riesgos para el análisis crítico:**
+- **El webhook no tiene *secret*:** cualquiera que conozca la URL puede mandar un POST a `/github-webhook/`. El daño es acotado: Jenkins no construye lo que dice el aviso, sino que va a GitHub a buscar el código, así que un aviso falso como mucho dispara un build de más. En un entorno real se configura un *secret* en GitHub y en Jenkins, para que se rechacen los avisos sin firma válida.
+- **El túnel expone una PC de desarrollo a internet,** aunque la política lo restringe a una sola ruta.
+**Verificación:** se cambió el saludo a "disparado por webhook" y se pusheó (`aac50ed`). Sin tocar Jenkins, el build #15 arrancó en segundos con la causa **"Started by GitHub push by AgustinLago22"** y salió completo en verde. El smoke test devolvió `{"mensaje":"Hola mundo desde Jenkins, disparado por webhook","version":"15"}`, y la limpieza borró las etiquetas del #14 (`hola-mundo:14`, `hola-mundo:8e3be45`).
+**Evidencia guardada:** docs/capturas/paso9-webhook-github.png, docs/capturas/paso9-started-by-github-push.png, `infra/docker-compose.yml`, `infra/ngrok/politica.yml`
+**Equivalente en ADO:** `trigger: branches: include: [main]`. En ADO, el problema de este paso "no existe": Azure Pipelines es un servicio en la nube con dirección pública, y GitHub le avisa directamente (a través de la GitHub App de Azure Pipelines). Lo interesante es que los agentes *self-hosted* de ADO funcionan detrás de NAT por la misma razón que el túnel: la conexión la abren ellos hacia afuera y le preguntan a ADO si hay trabajo (pull). Es la misma idea que el polling, pero del lado del agente.

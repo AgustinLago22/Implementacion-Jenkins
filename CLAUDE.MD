@@ -266,8 +266,8 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 9 — Disparo automático por push (pendiente de confirmación para arrancar)
-- **Pasos completados:** 0, 1, 2, 3, 4, 5, 6, 7, 8
+- **Paso actual:** 10 — Extras (pendiente de elegir cuál y confirmar para arrancar)
+- **Pasos completados:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 - **Notas:**
   - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080 en la PC de un integrante: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
   - Cada integrante ya tiene su propio Jenkins. Después de un `git pull` que toque `infra/jenkins/`, hay que correr `docker compose build` y `docker compose up -d`: el `Jenkinsfile` se lee de GitHub y puede pedir herramientas que la imagen vieja no tiene.
@@ -281,3 +281,6 @@ Cada extra se trata como un paso propio, de a uno.
   - El usuario se cansa de sacar capturas: pedir como máximo 2 o 3 imprescindibles por paso.
   - Imágenes base para tener descargadas antes de la demo: `mcr.microsoft.com/dotnet/sdk:10.0` y `mcr.microsoft.com/dotnet/aspnet:10.0`.
   - Antes de pushear en la demo: `git diff`. Un archivo sin guardar hizo construir el commit viejo (builds #5 y #6).
+  - Túnel: se levanta con `docker compose --profile tunel up -d` (desde `infra/`). Cada integrante necesita su propia cuenta de ngrok, su `infra/.env` (copiado de `.env.example`) y **su propio webhook** en GitHub apuntando a su dominio. Crear webhooks requiere permisos de admin del repo.
+  - Los triggers (`pollSCM`, `githubPush()`) se registran recién cuando corre un build con el `Jenkinsfile` que los declara. En un Jenkins nuevo, el primer build va a mano.
+  - El webhook no tiene *secret* (documentado como riesgo en la bitácora, Paso 9).
