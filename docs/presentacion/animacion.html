@@ -1,0 +1,2578 @@
+<!doctype html>
+<!--
+  Animación explicativa para el video (paso 10e): la parte teórica de la presentación.
+  Abrir con doble clic en el navegador (necesita internet: three.js se carga de un CDN).
+  Controles: Espacio / → avanzar · ← volver · 1–7 ir a una escena · R reiniciar escena
+             H ocultar ayuda (para grabar limpio) · F pantalla completa
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hola Mundo CI/CD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #eef2f8;
+    --texto: #1b2540;
+    --tenue: #5b6785;
+    --azul: #2f7cf6;
+    --bien: #22b573;
+    --mal: #e5484d;
+    --tarjeta: rgba(255, 255, 255, .92);
+    --borde: #d5ddeb;
+    --sombra: 0 10px 30px rgba(27, 37, 64, .12);
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fondo); color: var(--texto); font-family: Inter, system-ui, sans-serif; }
+  canvas { display: block; }
+  #etiquetas { position: fixed; inset: 0; pointer-events: none; }
+
+  /* Degradado inferior: asegura que la leyenda se lea aunque haya objetos detrás */
+  #degradado { position: fixed; left: 0; right: 0; bottom: 0; height: 30vh; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(238, 242, 248, 0), rgba(238, 242, 248, .94)); }
+
+  /* Leyenda: el título grande de cada momento */
+  #leyenda {
+    position: fixed; left: 50%; bottom: 5.5vh; transform: translateX(-50%);
+    width: min(1100px, 90vw); text-align: center; pointer-events: none;
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  #leyenda.oculta { opacity: 0; transform: translate(-50%, 10px); }
+  #leyenda h1 { margin: 0 0 .3em; font-size: clamp(26px, 3.3vw, 50px); font-weight: 800; letter-spacing: -.02em; }
+  #leyenda h1 em { font-style: normal; color: var(--azul); }
+  #leyenda p { margin: 0; font-size: clamp(16px, 1.6vw, 25px); color: var(--tenue); }
+  body.portada #leyenda { bottom: 50%; transform: translate(-50%, 50%); }
+  body.portada #leyenda.oculta { transform: translate(-50%, calc(50% + 10px)); }
+  body.portada #leyenda h1 { font-size: clamp(38px, 6vw, 96px); }
+  /* Portada "arriba": el título va en el tercio superior y deja libre la escena de abajo */
+  body.portada.arriba #leyenda { top: 8vh; bottom: auto; transform: translateX(-50%); }
+  body.portada.arriba #leyenda.oculta { transform: translate(-50%, -10px); }
+  #leyenda .integrantes { display: none; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 1.3em; }
+  #leyenda .integrantes.visible { display: flex; }
+  #leyenda .integrantes div {
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; box-shadow: var(--sombra);
+    padding: 9px 18px; font-size: clamp(14px, 1.3vw, 21px); font-weight: 600;
+  }
+  #leyenda .integrantes span { margin-left: 8px; font-weight: 400; color: var(--tenue); }
+
+  /* Panel lateral con la teoría de cada momento */
+  #panel {
+    position: fixed; left: 4vw; top: 42%; transform: translateY(-50%);
+    width: min(31vw, 470px); padding: 26px 30px 22px; box-sizing: border-box;
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 20px;
+    box-shadow: var(--sombra); backdrop-filter: blur(8px);
+    transition: opacity .45s ease, transform .45s ease;
+  }
+  #panel.oculto { opacity: 0; transform: translate(-18px, -50%); }
+  #panel h2 { margin: 0 0 14px; font-size: clamp(18px, 1.5vw, 26px); font-weight: 800; letter-spacing: -.01em; color: var(--azul); }
+  #panel ul { margin: 0; padding: 0; list-style: none; }
+  #panel li {
+    position: relative; padding-left: 20px; margin-bottom: 11px;
+    font-size: clamp(14px, 1.12vw, 20px); line-height: 1.38;
+    opacity: 0; transform: translateX(-8px); animation: entrar .5s ease forwards;
+  }
+  #panel li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 8px; height: 8px; border-radius: 50%; background: var(--azul); }
+  code { font-family: "JetBrains Mono", monospace; font-size: .88em; background: #eaf1fe; color: #1f5fc4; padding: 1px 6px; border-radius: 5px; }
+  @keyframes entrar { to { opacity: 1; transform: none; } }
+
+  /* Etiquetas que siguen a los objetos 3D */
+  .etiqueta {
+    font: 600 16px/1.2 Inter, sans-serif; color: var(--texto); text-align: center; white-space: nowrap;
+    background: var(--tarjeta); border: 1px solid var(--borde); box-shadow: 0 4px 14px rgba(27, 37, 64, .1);
+    padding: 6px 11px; border-radius: 9px;
+    transition: border-color .3s, background .3s, opacity .4s;
+  }
+  .etiqueta span { display: block; font-weight: 400; font-size: 12px; color: var(--tenue); }
+  .etiqueta.mal { border-color: var(--mal); background: #fff1f2; }
+  .etiqueta.bien { border-color: var(--bien); background: #effbf4; }
+  .etiqueta.codigo { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 13px; }
+  .etiqueta.codigo b { color: var(--azul); }
+  .etiqueta.mini { font-size: 12px; padding: 3px 8px; }
+  .etiqueta.mini span { font-size: 11px; }
+  .etiqueta.pulso { animation: pulso 1.1s ease-in-out infinite; }
+  .etiqueta.destello { animation: destello .9s ease; }
+  /* Sin transform: las etiquetas 3D usan transform para posicionarse y la animación lo pisaría. */
+  @keyframes pulso { 50% { box-shadow: 0 0 0 9px rgba(229, 72, 77, .18); } }
+  @keyframes destello { 30% { background: #dff7ea; border-color: var(--bien); box-shadow: 0 0 0 9px rgba(34, 181, 115, .2); } }
+
+  /* Barra de stages, como la vista de Jenkins */
+  .etapas { display: flex; align-items: center; gap: 6px; font: 600 13px Inter, sans-serif;
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 7px 9px; box-shadow: var(--sombra); }
+  .etapas i { color: var(--tenue); font-style: normal; }
+  .etapas b { padding: 5px 10px; border-radius: 7px; background: #fff; border: 1px solid var(--borde); color: var(--tenue); transition: all .35s; }
+  .etapas b.corriendo { border-color: var(--azul); color: var(--azul); animation: latido 1s ease-in-out infinite; }
+  .etapas b.ok { background: #e3f7ec; border-color: var(--bien); color: #13784a; }
+  .etapas b.mal { background: #ffeced; border-color: var(--mal); color: #b4232a; }
+  .etapas b.salteado { opacity: .4; text-decoration: line-through; }
+  @keyframes latido { 50% { background: #eaf1fe; } }
+
+  /* Editor con el Jenkinsfile */
+  .editor { width: 610px; background: #1e2a44; color: #dfe6f5; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 40px rgba(27, 37, 64, .25);
+    font: 500 15px/1.6 "JetBrains Mono", monospace; text-align: left; transition: opacity .5s; }
+  .editor .barra { display: flex; gap: 7px; align-items: center; padding: 10px 14px; background: #18223a; font: 600 13px Inter, sans-serif; color: #8b97b8; }
+  .editor .barra i { width: 11px; height: 11px; border-radius: 50%; }
+  .editor .barra span { margin-left: 8px; }
+  .editor pre { margin: 0; padding: 12px 0; font: inherit; }
+  .editor .linea { padding: 0 18px; white-space: pre; transition: background .45s, opacity .45s; }
+  .editor.enfocado .linea { opacity: .38; }
+  .editor.enfocado .linea.activa { opacity: 1; background: rgba(47, 124, 246, .28); }
+  .editor .kw { color: #7cc4ff; }
+  .editor .str { color: #f5c27a; }
+
+  /* HUD y ayuda: se ocultan con H para grabar */
+  #hud { position: fixed; top: 22px; left: 26px; font-size: 14px; color: var(--tenue); }
+  #puntos { display: flex; gap: 6px; margin-top: 8px; }
+  #puntos i { width: 22px; height: 4px; border-radius: 2px; background: rgba(91, 103, 133, .25); transition: background .3s; }
+  #puntos i.hecho { background: var(--azul); }
+  #ayuda { position: fixed; right: 26px; bottom: 18px; font-size: 13px; color: var(--tenue); opacity: .8; }
+  body.limpio #hud, body.limpio #ayuda { display: none; }
+
+  /* Velo para el fundido entre escenas */
+  #velo { position: fixed; inset: 0; background: var(--fondo); opacity: 1; pointer-events: none; transition: opacity .45s ease; }
+  #velo.abierto { opacity: 0; transition-duration: .8s; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body class="portada">
+<div id="etiquetas"></div>
+<div id="degradado"></div>
+<aside id="panel" class="oculto"><h2></h2><ul></ul></aside>
+<div id="leyenda" class="oculta"><h1></h1><p></p><div class="integrantes"></div></div>
+<div id="hud"><div id="hud-escena"></div><div id="puntos"></div></div>
+<div id="ayuda">Espacio / → avanzar · ← volver · 1–7 escenas · H ocultar · F pantalla completa</div>
+<div id="velo"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const C = {
+  fondo: 0xeef2f8, piso: 0xe6ecf5, texto: 0x1b2540,
+  azul: 0x2f7cf6, bien: 0x22b573, mal: 0xe5484d, ambar: 0xf5a524,
+  acero: 0x6b7ca3, claro: 0xf7f9fc, gris: 0xc9d3e3, grisOscuro: 0x9aa8c4, zona: 0xdde8fa,
+  dotnet: 0x512bd4, docker: 0x1d63ed, k8s: 0x326ce5, ngrok: 0x1f2440,
+};
+let tiempo = 0;
+
+// ───────────────────────── Escenario común ─────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+
+const etiquetas = new CSS2DRenderer({ element: document.getElementById('etiquetas') });
+etiquetas.setSize(innerWidth, innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(C.fondo);
+// La niebla tiene el color del fondo: el piso se funde con el horizonte, sin borde visible.
+scene.fog = new THREE.Fog(C.fondo, 20, 48);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 120);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xc8d2e4, 1.6));
+const sol = new THREE.DirectionalLight(0xffffff, 1.9);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+sol.shadow.bias = -0.0005;
+Object.assign(sol.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11 });
+scene.add(sol, sol.target);
+
+const piso = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), new THREE.MeshStandardMaterial({ color: C.piso, roughness: 1 }));
+piso.rotation.x = -Math.PI / 2;
+piso.receiveShadow = true;
+scene.add(piso);
+const grilla = new THREE.GridHelper(160, 160, 0xd3dbe8, 0xdde4ef);
+grilla.position.y = 0.002;
+scene.add(grilla);
+
+// Motas que suben despacio: dan profundidad y movimiento constante.
+const motas = (() => {
+  const n = 320, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 34;
+    pos[i * 3 + 1] = Math.random() * 9;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 30;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: C.azul, size: 0.035, transparent: true, opacity: 0.35, depthWrite: false }));
+  scene.add(p);
+  return p;
+})();
+
+// ───────────────────────── Utilidades ─────────────────────────
+const lerp = (a, b, k) => a + (b - a) * k;
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const curvas = {
+  lineal: k => k,
+  entrada: k => k * k,
+  suave: k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  salida: k => 1 - Math.pow(1 - k, 3),
+  resorte: k => 1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2),
+  rebote: k => {
+    const n = 7.5625, d = 2.75;
+    if (k < 1 / d) return n * k * k;
+    if (k < 2 / d) return n * (k -= 1.5 / d) * k + 0.75;
+    if (k < 2.5 / d) return n * (k -= 2.25 / d) * k + 0.9375;
+    return n * (k -= 2.625 / d) * k + 0.984375;
+  },
+};
+
+function mat(color, { metal = 0.05, rugoso = 0.55, emisivo = 0x000000, intensidad = 0 } = {}) {
+  return new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rugoso, emissive: emisivo, emissiveIntensity: intensidad });
+}
+// Color plano, sin sombreado: para detalles que tienen que "resaltar" (bordes, flechas, pantallas).
+const plano = (color, opciones = {}) => new THREE.MeshBasicMaterial({ color, ...opciones });
+
+function caja(w, h, d, material, redondeo = 0) {
+  const geo = redondeo ? new RoundedBoxGeometry(w, h, d, 4, redondeo) : new THREE.BoxGeometry(w, h, d);
+  const m = new THREE.Mesh(geo, material);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+function cilindro(rArriba, rAbajo, alto, material, abierto = false, lados = 48) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rArriba, rAbajo, alto, lados, 1, abierto), material);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+function esfera(radio, material) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(radio, 24, 16), material);
+  m.castShadow = true;
+  return m;
+}
+// Tubo recto entre dos puntos (cables y conexiones).
+function tubo(desde, hasta, radio, material) {
+  const dir = hasta.clone().sub(desde);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(radio, radio, dir.length(), 12), material);
+  m.position.copy(desde).addScaledVector(dir, 0.5);
+  m.quaternion.setFromUnitVectors(V(0, 1, 0), dir.normalize());
+  return m;
+}
+// Aura suave detrás de un objeto: el "brillo" que en un fondo claro no da el bloom.
+function aura(color, tam) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const col = new THREE.Color(color);
+  const rgb = `${Math.round(col.r * 255)}, ${Math.round(col.g * 255)}, ${Math.round(col.b * 255)}`;
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, `rgba(${rgb}, .5)`);
+  grad.addColorStop(1, `rgba(${rgb}, 0)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  s.scale.setScalar(tam);
+  return s;
+}
+function etiqueta(html, clase = '') {
+  const div = document.createElement('div');
+  div.className = 'etiqueta ' + clase;
+  div.innerHTML = html;
+  return new CSS2DObject(div);
+}
+// Cambia texto y clase solo si cambiaron: se llama en cada cuadro y así no se toca el DOM de más.
+function rotular(et, texto, clase = '') {
+  const nombre = `etiqueta mini ${clase}`.trim();
+  if (et.element.className !== nombre) et.element.className = nombre;
+  if (et.element.textContent !== texto) et.element.textContent = texto;
+}
+// Vuelve a disparar una animación CSS (por ejemplo, el destello al cambiar de versión).
+function reanimar(et, clase) {
+  et.element.classList.remove(clase);
+  void et.element.offsetWidth;
+  et.element.classList.add(clase);
+}
+// Encuadre hacia un punto. Con panel, la cámara se corre a la izquierda para que
+// el contenido quede en la parte derecha de la pantalla, libre del panel.
+function vistaHacia(centro, distancia, { panel = true, elevacion = 0.32, giro = 0 } = {}) {
+  const mira = centro.clone();
+  if (panel) mira.x -= 0.255 * distancia;
+  const pos = V(
+    mira.x + Math.sin(giro) * Math.cos(elevacion) * distancia,
+    mira.y + Math.sin(elevacion) * distancia,
+    mira.z + Math.cos(giro) * Math.cos(elevacion) * distancia,
+  );
+  return [pos, mira];
+}
+
+// Mini motor de animaciones. En modo "instantáneo" todo salta al estado final:
+// así se puede volver a un momento anterior reconstruyendo la escena sin esperar.
+let tweens = [];
+let instantaneo = false;
+function animar({ dur = 1, demora = 0, curva = curvas.suave, inicio, paso, fin }) {
+  if (instantaneo) { inicio?.(); paso?.(1); fin?.(); return; }
+  tweens.push({ t: -demora, dur, curva, inicio, paso, fin, empezo: false });
+}
+const luego = (seg, fn) => animar({ dur: seg, fin: fn });
+function actualizarTweens(dt) {
+  const lista = tweens;
+  for (const tw of [...lista]) {
+    if (lista !== tweens) break; // se cambió de escena en medio del recorrido
+    tw.t += dt;
+    if (tw.t < 0) continue;
+    if (!tw.empezo) { tw.empezo = true; tw.inicio?.(); }
+    const k = Math.min(tw.t / tw.dur, 1);
+    tw.paso?.(tw.curva(k));
+    if (k >= 1) { lista.splice(lista.indexOf(tw), 1); tw.fin?.(); }
+  }
+}
+// Lleva un objeto a otra posición y rotación, con un arco opcional (salto) y caída con gravedad.
+function volar(obj, destino, { rot, arco = 0, gravedad = false, ...opciones } = {}) {
+  let p0, r0;
+  animar({
+    ...opciones,
+    inicio() { p0 = obj.position.clone(); r0 = obj.rotation.clone(); opciones.inicio?.(); },
+    paso(k) {
+      obj.position.x = lerp(p0.x, destino.x, k);
+      obj.position.z = lerp(p0.z, destino.z, k);
+      obj.position.y = lerp(p0.y, destino.y, gravedad ? k * k : k) + Math.sin(Math.PI * k) * arco;
+      if (rot) obj.rotation.set(lerp(r0.x, rot.x ?? r0.x, k), lerp(r0.y, rot.y ?? r0.y, k), lerp(r0.z, rot.z ?? r0.z, k));
+    },
+  });
+}
+// Recorre un camino curvo (Catmull-Rom) que pasa por todos los puntos.
+function recorrer(obj, puntos, opciones = {}) {
+  const camino = puntos.isCurve ? puntos : new THREE.CatmullRomCurve3(puntos);
+  animar({ curva: curvas.suave, ...opciones, paso: k => { obj.position.copy(camino.getPoint(k)); } });
+}
+function escalar(obj, hasta, opciones = {}) {
+  let s0;
+  animar({ ...opciones, inicio() { s0 = obj.scale.x; }, paso(k) { obj.scale.setScalar(Math.max(lerp(s0, hasta, k), 0.001)); } });
+}
+function colorear(material, color, opciones = {}) {
+  let c0;
+  const c1 = new THREE.Color(color);
+  animar({ ...opciones, inicio() { c0 = material.color.clone(); }, paso(k) { material.color.lerpColors(c0, c1, k); } });
+}
+const mostrar = (et, demora = 0) => luego(demora, () => { if (et) et.visible = true; });
+
+// Cámara con amortiguación tipo resorte: arranca y frena suave, sin tirones.
+const cam = {
+  pos: V(0, 3, 8), mira: V(0, 1, 0), suavidad: 1.1, sacudida: 0,
+  base: V(0, 3, 8), miraActual: V(0, 1, 0), velPos: V(), velMira: V(),
+};
+function encuadrar(pos, mira, suavidad = 1.1) {
+  cam.pos.copy(pos);
+  cam.mira.copy(mira);
+  cam.suavidad = suavidad;
+}
+function sacudir(fuerza) { if (!instantaneo) cam.sacudida = Math.max(cam.sacudida, fuerza); }
+// SmoothDamp: el mismo algoritmo que usan los motores de juegos para seguir un objetivo.
+function amortiguar(actual, objetivo, vel, t, dt) {
+  const omega = 2 / t, x = omega * dt;
+  const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  for (const eje of ['x', 'y', 'z']) {
+    const cambio = actual[eje] - objetivo[eje];
+    const temp = (vel[eje] + omega * cambio) * dt;
+    vel[eje] = (vel[eje] - omega * temp) * e;
+    actual[eje] = objetivo[eje] + (cambio + temp) * e;
+  }
+}
+
+// ───────────────────────── Piezas reutilizables ─────────────────────────
+// La torre de control: así se dibuja el controller de Jenkins en todas las escenas.
+function crearTorre() {
+  const t = new THREE.Group();
+  const base = cilindro(0.95, 1.05, 0.22, mat(C.gris));
+  base.position.y = 0.11;
+  const cuerpo = cilindro(0.45, 0.6, 2.1, mat(C.claro));
+  cuerpo.position.y = 1.27;
+  for (const y of [0.75, 1.25, 1.75]) {
+    const r = lerp(0.6, 0.45, (y - 0.22) / 2.1) + 0.006;
+    const franja = cilindro(r, r + 0.004, 0.05, plano(0xdbe7fb), true);
+    franja.position.y = y;
+    t.add(franja);
+  }
+  const cabina = cilindro(0.8, 0.7, 0.5, mat(C.azul));
+  cabina.position.y = 2.55;
+  const ventanas = cilindro(0.79, 0.765, 0.16, plano(0xcfe3ff), true);
+  ventanas.position.y = 2.6;
+  const techo = cilindro(0.2, 0.86, 0.2, mat(C.texto));
+  techo.position.y = 2.9;
+  const antena = cilindro(0.025, 0.025, 0.5, mat(C.texto));
+  antena.position.y = 3.25;
+  const luz = esfera(0.07, plano(C.mal));
+  luz.position.y = 3.52;
+  t.add(base, cuerpo, cabina, ventanas, techo, antena, luz);
+  t.userData = { luz, destello: -10 };
+  return t;
+}
+// La luz de la antena parpadea en rojo y se pone verde cuando le llega trabajo.
+function parpadear(torre, t) {
+  const verde = t - torre.userData.destello < 1.4;
+  torre.userData.luz.material.color.setHex(verde ? C.bien : (Math.sin(t * 3) > 0 ? C.mal : 0xffc2c4));
+}
+const destellar = torre => { torre.userData.destello = tiempo; };
+
+function crearCommit(html, color = C.azul) {
+  const m = caja(0.26, 0.26, 0.26, mat(color, { emisivo: color, intensidad: 0.35 }), 0.04);
+  m.add(aura(color, 1.1));
+  const et = etiqueta(html, 'codigo');
+  et.position.y = 0.34;
+  m.add(et);
+  m.userData.et = et;
+  return m;
+}
+function crearNube(html) {
+  const g = new THREE.Group();
+  const blanco = mat(0xffffff, { rugoso: 0.9 });
+  for (const [x, y, z, r] of [[0, 0, 0, 0.55], [0.55, -0.1, 0.1, 0.42], [-0.55, -0.12, 0.05, 0.4], [0.25, 0.3, -0.05, 0.42], [-0.25, 0.25, 0, 0.38]]) {
+    const s = esfera(r, blanco);
+    s.position.set(x, y, z);
+    g.add(s);
+  }
+  const et = etiqueta(html);
+  et.position.y = 0.95;
+  g.add(et);
+  g.userData.et = et;
+  return g;
+}
+// Contenedor de Docker dibujado como contenedor de carga, con nervaduras.
+function crearContenedor({ ancho = 1.1, alto = 0.7, fondo = 0.6, color = C.azul, html = '' } = {}) {
+  const g = new THREE.Group();
+  const material = mat(color);
+  const cuerpo = caja(ancho, alto, fondo, material, 0.04);
+  cuerpo.position.y = alto / 2;
+  g.add(cuerpo);
+  const nervio = mat(new THREE.Color(color).multiplyScalar(0.8));
+  const n = Math.max(3, Math.round(ancho / 0.14));
+  for (let i = 1; i < n; i++) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.025, alto * 0.78, 0.02), nervio);
+    r.position.set(-ancho / 2 + (i * ancho) / n, alto / 2, fondo / 2 + 0.006);
+    g.add(r);
+  }
+  let et = null;
+  if (html) {
+    et = etiqueta(html);
+    et.position.y = alto + 0.32;
+    g.add(et);
+  }
+  g.userData = { cuerpo, material, et };
+  return g;
+}
+function crearServidor(html) {
+  const g = new THREE.Group();
+  const cuerpo = caja(0.7, 1.1, 0.6, mat(0x3a4766), 0.04);
+  cuerpo.position.y = 0.55;
+  g.add(cuerpo);
+  const leds = [];
+  for (let i = 0; i < 3; i++) {
+    const bahia = caja(0.56, 0.18, 0.02, mat(0x2a3352), 0.01);
+    bahia.position.set(0, 0.3 + i * 0.27, 0.305);
+    const led = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.01), plano(C.bien));
+    led.position.set(0.2, 0.3 + i * 0.27, 0.318);
+    g.add(bahia, led);
+    leds.push(led);
+  }
+  // Los executors: los "lugares" de trabajo del agente, arriba del servidor.
+  const slots = [-0.17, 0.17].map(x => {
+    const s = caja(0.26, 0.04, 0.4, mat(C.gris), 0.01);
+    s.position.set(x, 1.12, 0);
+    g.add(s);
+    return s;
+  });
+  const et = etiqueta(html);
+  et.position.y = 1.5;
+  g.add(et);
+  g.userData = { leds, slots, et };
+  return g;
+}
+function crearMuro(ancho, alto) {
+  const g = new THREE.Group();
+  const ladrillo = mat(0xd9a48f, { rugoso: 0.9 });
+  const lw = 0.4, lh = 0.2;
+  const filas = Math.round(alto / lh);
+  for (let f = 0; f < filas; f++) {
+    for (let x = -ancho / 2 + (f % 2 ? 0 : lw / 2); x <= ancho / 2 + 0.01; x += lw) {
+      const b = caja(lw - 0.025, lh - 0.025, 0.26, ladrillo);
+      b.position.set(x, lh / 2 + f * lh, 0);
+      g.add(b);
+    }
+  }
+  return g;
+}
+// Imagen de Docker: capas apiladas. Con "oculta", las capas esperan arriba para caer en su lugar.
+function crearImagen(capas, { ancho = 1.0, alto = 0.22, oculta = false, html = '' } = {}) {
+  const g = new THREE.Group();
+  const losas = capas.map(([texto, color], i) => {
+    const l = caja(ancho, alto - 0.03, ancho * 0.7, mat(color), Math.min(0.03, (alto - 0.03) / 2 - 0.004));
+    l.userData.y = alto / 2 + i * alto;
+    l.position.y = oculta ? l.userData.y + 2 : l.userData.y;
+    l.visible = !oculta;
+    if (texto) {
+      const et = etiqueta(texto, 'mini');
+      et.position.x = ancho / 2 + 0.12;
+      et.center.set(0, 0.5);
+      et.visible = !oculta;
+      l.add(et);
+      l.userData.et = et;
+    }
+    g.add(l);
+    return l;
+  });
+  const et = etiqueta(html);
+  et.position.y = capas.length * alto + 0.42;
+  et.visible = !oculta && !!html;
+  g.add(et);
+  g.userData = { losas, et };
+  return g;
+}
+function apilar(imagen, demora = 0) {
+  const { losas, et } = imagen.userData;
+  losas.forEach((l, i) => {
+    luego(demora + i * 0.35, () => { l.visible = true; });
+    volar(l, V(0, l.userData.y, 0), {
+      dur: 0.7, demora: demora + i * 0.35, curva: curvas.rebote,
+      fin() { if (l.userData.et) l.userData.et.visible = true; },
+    });
+  });
+  mostrar(et, demora + losas.length * 0.35 + 0.4);
+}
+function crearCarpeta(html) {
+  const g = new THREE.Group();
+  const cuerpo = caja(0.9, 0.08, 0.65, mat(C.ambar), 0.02);
+  cuerpo.position.y = 0.05;
+  const pestana = caja(0.34, 0.08, 0.2, mat(C.ambar), 0.02);
+  pestana.position.set(-0.26, 0.09, -0.27);
+  const hojas = caja(0.8, 0.05, 0.55, mat(0xffffff), 0.01);
+  hojas.position.y = 0.11;
+  g.add(cuerpo, pestana, hojas);
+  const et = etiqueta(html);
+  et.position.y = 0.55;
+  g.add(et);
+  g.userData.et = et;
+  return g;
+}
+function crearSobre() {
+  const g = new THREE.Group();
+  g.add(caja(0.34, 0.22, 0.04, mat(0xffffff), 0.015));
+  for (const lado of [-1, 1]) {
+    const solapa = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.016, 0.01), plano(C.azul));
+    solapa.position.set(lado * 0.08, 0.04, 0.024);
+    solapa.rotation.z = lado * 0.55;
+    g.add(solapa);
+  }
+  g.add(aura(C.azul, 0.8));
+  const et = etiqueta('webhook', 'mini');
+  et.position.y = 0.3;
+  g.add(et);
+  g.userData.et = et;
+  g.visible = false;
+  et.visible = false;
+  return g;
+}
+// Puesto del desarrollador en miniatura.
+function crearPuesto() {
+  const g = new THREE.Group();
+  const mesa = caja(0.8, 0.05, 0.5, mat(0xf4f6fa), 0.02);
+  mesa.position.y = 0.6;
+  const pie = caja(0.08, 0.58, 0.08, mat(C.grisOscuro));
+  pie.position.y = 0.29;
+  const base = caja(0.46, 0.02, 0.3, mat(0xb8c2d6), 0.008);
+  base.position.y = 0.635;
+  const bisagra = new THREE.Group();
+  bisagra.position.set(0, 0.645, -0.14);
+  bisagra.rotation.x = -0.25;
+  const tapa = caja(0.46, 0.3, 0.015, mat(0xb8c2d6), 0.006);
+  tapa.position.y = 0.15;
+  const pantalla = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.26), plano(0x1e2a44));
+  pantalla.position.set(0, 0.15, 0.009);
+  bisagra.add(tapa, pantalla);
+  g.add(mesa, pie, base, bisagra);
+  const et = etiqueta('<b>Desarrollador</b>', 'mini');
+  et.position.y = 1.15;
+  g.add(et);
+  return g;
+}
+// Túnel de ngrok: un tubo translúcido que "crece" a lo largo de su camino.
+function crearTunel(puntos, radio = 0.16) {
+  const camino = new THREE.CatmullRomCurve3(puntos);
+  const geo = new THREE.TubeGeometry(camino, 90, radio, 16, false);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: C.azul, transparent: true, opacity: 0.25, roughness: 0.3, side: THREE.DoubleSide, depthWrite: false }));
+  const centro = new THREE.Mesh(new THREE.TubeGeometry(camino, 90, 0.018, 8, false), plano(C.azul));
+  m.add(centro);
+  m.userData = { camino, partes: [geo, centro.geometry] };
+  return m;
+}
+function crecerTunel(tunel, opciones = {}) {
+  animar({
+    ...opciones,
+    paso: k => tunel.userData.partes.forEach(geo => geo.setDrawRange(0, Math.floor((geo.index.count * k) / 6) * 6)),
+  });
+}
+const ocultarTunel = tunel => tunel.userData.partes.forEach(geo => geo.setDrawRange(0, 0));
+function barraProgreso(ancho) {
+  const geo = new THREE.BoxGeometry(ancho, 0.06, 0.02);
+  geo.translate(ancho / 2, 0, 0);
+  const b = new THREE.Mesh(geo, plano(C.bien));
+  b.scale.x = 0.001;
+  return b;
+}
+const progreso = (barra, hasta, opciones) => animar({ ...opciones, paso: k => { barra.scale.x = Math.max(k * hasta, 0.001); } });
+
+// La barra de stages, igual a la vista de stages de Jenkins.
+const NOMBRES_ETAPAS = ['Checkout', 'Build', 'Test', 'Docker Image', 'Deploy', 'Smoke Test'];
+function crearEtapas() {
+  const div = document.createElement('div');
+  div.className = 'etapas';
+  div.innerHTML = NOMBRES_ETAPAS.map(n => `<b>${n}</b>`).join('<i>›</i>');
+  const obj = new CSS2DObject(div);
+  const chips = () => div.querySelectorAll('b');
+  obj.userData.marcar = (i, estado) => { chips()[i].className = estado; };
+  obj.userData.todas = estado => chips().forEach(c => { c.className = estado; });
+  return obj;
+}
+
+// ───────────────────────── Escena 1: el problema ─────────────────────────
+function crearEscena1() {
+  const g = new THREE.Group();
+  const s = { orbitando: false, tipeando: false, flota: false, tambalea: false, altura: 1, amp: 1, alerta: false, orbita: 0.65 };
+  const centroOrbita = V(0.4, 1, -0.2);
+  const posOrbita = a => V(centroOrbita.x + 5.6 * Math.sin(a), 2.7, centroOrbita.z + 5.6 * Math.cos(a));
+  const vistaGeneral = [V(3.4, 2.5, 4.4), V(0.5, 1.0, -0.2)];
+  const vistaPila = [V(4.4, 2.6, 3.0), V(1.4, 1.0, -0.6)];
+  const vistaCinta = [V(0, 2.8, 8.2), V(0, 0.7, 2.0)];
+  const vistaCiCd = [V(-1.8, 3.6, 10.5), V(-1.6, 1.0, 2.4)];
+
+  // Escritorio, notebook y desarrollador
+  const tapa = caja(1.8, 0.08, 0.9, mat(0xf4f6fa), 0.02);
+  tapa.position.set(0, 0.75, 0);
+  g.add(tapa);
+  const metal = mat(C.grisOscuro);
+  for (const [x, z] of [[-0.82, -0.38], [0.82, -0.38], [-0.82, 0.38], [0.82, 0.38]]) {
+    const pata = caja(0.05, 0.71, 0.05, metal);
+    pata.position.set(x, 0.355, z);
+    g.add(pata);
+  }
+  const aluminio = mat(0xb8c2d6, { rugoso: 0.4 });
+  const baseNb = caja(0.62, 0.03, 0.42, aluminio, 0.01);
+  baseNb.position.set(0, 0.805, 0.05);
+  const bisagra = new THREE.Group();
+  bisagra.position.set(0, 0.82, -0.16);
+  bisagra.rotation.x = -0.28;
+  const tapaNb = caja(0.62, 0.4, 0.02, aluminio, 0.008);
+  tapaNb.position.y = 0.2;
+  const pantalla = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.34), plano(0x1e2a44));
+  pantalla.position.set(0, 0.2, 0.011);
+  bisagra.add(tapaNb, pantalla);
+  // Líneas de código que se "escriben" en la pantalla
+  const lineas = [0.32, 0.22, 0.4, 0.18, 0.3, 0.26].map((w, j) => {
+    const geo = new THREE.PlaneGeometry(w, 0.022);
+    geo.translate(w / 2, 0, 0);
+    const l = new THREE.Mesh(geo, plano([0x7cc4ff, 0xffffff, C.ambar][j % 3]));
+    l.position.set(-0.24 + (j % 3 === 1 ? 0.04 : 0), 0.32 - j * 0.045, 0.013);
+    l.scale.x = 0.001;
+    bisagra.add(l);
+    return l;
+  });
+  g.add(baseNb, bisagra);
+
+  // Detalles del escritorio: una planta y una taza de café humeante
+  const maceta = cilindro(0.07, 0.055, 0.12, mat(0xe07a5f));
+  maceta.position.set(0.72, 0.85, -0.28);
+  g.add(maceta);
+  [[0, 0.98, 0, 0.09], [0.05, 1.05, 0.02, 0.07], [-0.05, 1.03, -0.02, 0.07]].forEach(([x, y, z, r]) => {
+    const hoja = esfera(r, mat(0x4caf7a));
+    hoja.position.set(0.72 + x, y, -0.28 + z);
+    g.add(hoja);
+  });
+  const taza = cilindro(0.05, 0.045, 0.1, mat(0xffffff));
+  taza.position.set(-0.62, 0.84, 0.12);
+  const asa = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 8, 16), mat(0xffffff));
+  asa.position.set(-0.565, 0.84, 0.12);
+  g.add(taza, asa);
+  const vapor = [0, 1, 2].map(() => {
+    const v = esfera(0.022, plano(0xffffff, { transparent: true, opacity: 0.7 }));
+    v.castShadow = false;
+    g.add(v);
+    return v;
+  });
+
+  const asiento = caja(0.5, 0.06, 0.5, metal, 0.02);
+  asiento.position.set(0, 0.48, 0.85);
+  const respaldo = caja(0.5, 0.6, 0.06, metal, 0.02);
+  respaldo.position.set(0, 0.8, 1.12);
+  const ropa = mat(C.azul);
+  const cuerpo = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.45, 6, 16), ropa);
+  cuerpo.position.set(0, 1.0, 0.85);
+  const cabeza = esfera(0.16, mat(0xffd2b0));
+  cabeza.position.set(0, 1.58, 0.82);
+  cuerpo.castShadow = true;
+  const brazos = [-1, 1].map(lado => {
+    const hombro = new THREE.Group();
+    hombro.position.set(lado * 0.2, 1.2, 0.82);
+    hombro.rotation.x = 1.02;
+    const brazo = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.5, 4, 8), ropa);
+    brazo.position.y = -0.3;
+    brazo.castShadow = true;
+    hombro.add(brazo);
+    return hombro;
+  });
+  g.add(asiento, respaldo, cuerpo, cabeza, ...brazos);
+
+  // El commit: el cubo que protagoniza toda la animación
+  const commit = crearCommit('<b>commit</b> a1b2c3d');
+  commit.position.set(0, 1.5, 0.05);
+  commit.scale.setScalar(0.001);
+  const etCommit = commit.userData.et;
+  etCommit.visible = false;
+  g.add(commit);
+
+  // La pila de tareas manuales
+  const pila = new THREE.Group();
+  pila.position.set(1.9, 0, -0.9);
+  g.add(pila);
+  const tareas = ['Compilar', 'Probar', 'Empaquetar', 'Desplegar', 'Verificar'];
+  const etapas = ['Build', 'Test', 'Docker Image', 'Deploy', 'Smoke Test'];
+  const corrimiento = [0, -0.05, 0.04, -0.03, 0.06];
+  const bloques = tareas.map((nombre, i) => {
+    const m = mat(C.ambar, { emisivo: C.mal });
+    const b = caja(0.9, 0.3, 0.6, m, 0.05);
+    // Ocultos hasta que caen: si no, desde arriba del cuadro igual proyectarían sombra.
+    b.position.set(corrimiento[i], i === 0 ? 0.15 : 6, 0);
+    b.visible = false;
+    const et = etiqueta(`<b>${nombre}</b>`);
+    et.visible = false;
+    b.add(et);
+    b.userData = { m, et };
+    pila.add(b);
+    return b;
+  });
+
+  // La cinta transportadora y las llaves de CI / CD (aparecen al final)
+  const cinta = new THREE.Group();
+  cinta.position.set(0, 0, 2.6);
+  cinta.scale.set(0.001, 1, 1);
+  const banda = caja(6.8, 0.06, 0.9, mat(C.gris), 0.02);
+  banda.position.y = 0.03;
+  cinta.add(banda);
+  for (const z of [-0.46, 0.46]) {
+    const borde = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.02, 0.04), plano(C.azul));
+    borde.position.set(0, 0.07, z);
+    cinta.add(borde);
+  }
+  // Rodillos de la cinta: giran cuando la cinta está en marcha
+  const rodillos = [];
+  for (let x = -3.2; x <= 3.21; x += 0.4) {
+    const r = cilindro(0.035, 0.035, 0.92, mat(C.grisOscuro), false, 12);
+    r.rotation.x = Math.PI / 2;
+    r.position.set(x, 0.075, 0);
+    cinta.add(r);
+    rodillos.push(r);
+  }
+  g.add(cinta);
+  const flechas = [0, 1, 2, 3].map(i => {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.22, 24), plano(C.azul));
+    f.rotation.z = -Math.PI / 2;
+    f.position.set(-1.8 + i * 1.2, 0.4, 2.6);
+    f.scale.setScalar(0.001);
+    g.add(f);
+    return f;
+  });
+  const llaves = [
+    { desde: -2.4, hasta: 0, color: C.azul, html: '<b>CI</b><span>integración continua</span>' },
+    { desde: 1.2, hasta: 2.4, color: C.bien, html: '<b>CD</b><span>entrega / despliegue continuo</span>' },
+  ].map(({ desde, hasta, color, html }) => {
+    const grupo = new THREE.Group();
+    const ancho = hasta - desde + 0.9;
+    grupo.add(new THREE.Mesh(new THREE.BoxGeometry(ancho, 0.04, 0.04), plano(color)));
+    for (const lado of [-1, 1]) {
+      const pata = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.04), plano(color));
+      pata.position.set((lado * ancho) / 2, -0.11, 0);
+      grupo.add(pata);
+    }
+    grupo.position.set((desde + hasta) / 2, 1.3, 2.6);
+    grupo.scale.set(0.001, 1, 1);
+    const et = etiqueta(html);
+    et.position.y = 0.34;
+    et.visible = false;
+    grupo.add(et);
+    g.add(grupo);
+    return { grupo, et };
+  });
+
+  // En la portada la cámara mira más alto: el escritorio queda abajo y el título arriba no lo tapa.
+  encuadrar(posOrbita(s.orbita), V(centroOrbita.x, 1.9, centroOrbita.z));
+
+  const pasos = [
+    {
+      titulo: 'Hola Mundo <em>CI/CD</em> con Jenkins',
+      texto: 'Del git push a staging, sin tocar nada',
+      portada: 'arriba',
+      integrantes: [['Osvaldo Agustin Lago', '57725'], ['Juan Agustin Acosta', '57851']],
+      accion() { s.orbitando = true; },
+    },
+    {
+      titulo: 'Todo empieza con un cambio',
+      texto: 'Un desarrollador modifica el código y lo sube al repositorio: commit y push.',
+      accion() {
+        s.orbitando = false;
+        encuadrar(...vistaGeneral);
+        s.tipeando = true;
+        lineas.forEach((l, j) => animar({ dur: 0.35, demora: 0.3 + j * 0.22, curva: curvas.salida, paso: k => { l.scale.x = Math.max(k, 0.001); } }));
+        escalar(commit, 1, { dur: 0.7, demora: 1.8, curva: curvas.resorte });
+        luego(2.1, () => { etCommit.visible = true; s.flota = true; s.tipeando = false; });
+      },
+    },
+    {
+      titulo: 'Y después, todo a mano',
+      texto: 'Compilar, probar, empaquetar, desplegar y verificar. En cada cambio.',
+      accion() {
+        encuadrar(...vistaPila);
+        s.tambalea = true;
+        bloques.forEach((b, i) => {
+          luego(0.4 + i * 0.5, () => { b.visible = true; });
+          if (i === 0) { mostrar(b.userData.et, 0.4); return; }
+          volar(b, V(corrimiento[i], 0.15 + i * 0.31, 0), {
+            dur: 0.8, demora: 0.4 + i * 0.5, curva: curvas.rebote,
+            fin() { b.userData.et.visible = true; s.altura = i + 1; },
+          });
+        });
+      },
+    },
+    {
+      titulo: 'Lento y frágil',
+      texto: 'Alcanza con saltearse un paso para que el error llegue a los usuarios.',
+      accion() {
+        const probar = bloques[1];
+        s.alerta = true;
+        probar.userData.et.element.classList.add('mal');
+        probar.userData.et.element.innerHTML = '<b>Probar</b><span>¡me lo salteé!</span>';
+        animar({ dur: 1.3, demora: 0.3, curva: curvas.entrada, paso: k => { s.amp = 1 + k * 4; } });
+        // Se cae todo lo que está arriba de "Compilar"
+        luego(1.6, () => {
+          s.tambalea = false;
+          pila.rotation.set(0, 0, 0);
+          const destinos = [null, [0.95, 0.45], [1.3, -0.4], [1.65, 0.3], [2.0, -0.1]];
+          const giros = [0, 0.4, -0.7, 0.9, -0.3];
+          for (let i = 4; i >= 1; i--) {
+            volar(bloques[i], V(destinos[i][0], 0.15, destinos[i][1]), {
+              rot: { y: giros[i], z: -Math.PI }, arco: 0.5, gravedad: true,
+              dur: 0.75, demora: (4 - i) * 0.09, curva: curvas.lineal,
+              fin() { sacudir(0.05); },
+            });
+          }
+        });
+      },
+    },
+    {
+      titulo: 'La idea: una línea de montaje',
+      texto: 'Una máquina hace esos pasos siempre igual, en cada cambio. Eso es un pipeline.',
+      accion() {
+        s.alerta = false;
+        s.tambalea = false;
+        s.cinta = true;
+        pila.rotation.set(0, 0, 0);
+        encuadrar(...vistaCinta, 1.3);
+        animar({ dur: 1.1, demora: 0.2, paso: k => { cinta.scale.x = Math.max(k, 0.001); } });
+        bloques.forEach((b, i) => {
+          const { m, et } = b.userData;
+          m.emissiveIntensity = 0;
+          et.element.classList.remove('mal');
+          et.element.innerHTML = `<b>${etapas[i]}</b><span>${tareas[i].toLowerCase()}</span>`;
+          // Coordenadas locales de la pila: la cinta está en z = 2.6 del mundo.
+          volar(b, V(-2.4 + i * 1.2 - pila.position.x, 0.4, 2.6 - pila.position.z), {
+            rot: { x: 0, y: 0, z: -2 * Math.PI }, arco: 1.4, dur: 1.4, demora: 0.3 + i * 0.15,
+          });
+          colorear(m, C.acero, { dur: 1.4, demora: 0.3 + i * 0.15 });
+        });
+        flechas.forEach((f, i) => escalar(f, 1, { dur: 0.5, demora: 2.0 + i * 0.1, curva: curvas.resorte }));
+        // El commit recorre la cinta: cada estación se pone verde al procesarlo.
+        luego(2.5, () => {
+          s.flota = false;
+          volar(commit, V(-3.3, 0.95, 2.6), {
+            arco: 0.8, dur: 1.2,
+            fin() {
+              const recorrido = 4;
+              animar({ dur: recorrido, curva: curvas.suave, paso: k => { commit.position.x = lerp(-3.3, 3.3, k); } });
+              bloques.forEach((b, i) => {
+                // Con la curva "suave" el cubo no va a velocidad constante: se calcula cuándo pasa por cada estación.
+                const fraccion = ((-2.4 + i * 1.2) + 3.3) / 6.6;
+                let bajo = 0, alto = 1;
+                for (let it = 0; it < 25; it++) {
+                  const medio = (bajo + alto) / 2;
+                  if (curvas.suave(medio) < fraccion) bajo = medio; else alto = medio;
+                }
+                colorear(b.userData.m, C.bien, { dur: 0.4, demora: recorrido * bajo });
+                luego(recorrido * bajo, () => b.userData.et.element.classList.add('bien'));
+              });
+            },
+          });
+        });
+      },
+    },
+    {
+      titulo: 'CI y CD',
+      texto: 'Las dos mitades del pipeline.',
+      panel: {
+        titulo: 'Integración y entrega continua',
+        puntos: [
+          '<b>CI — Integración continua:</b> cada cambio se compila y se prueba automáticamente. Un error aparece en minutos, no en semanas.',
+          '<b>CD — Entrega / despliegue continuo:</b> lo que pasó las pruebas se empaqueta y se despliega solo a un entorno.',
+          'El resultado es un <b>artefacto</b> (en nuestro caso, una imagen Docker) que se construye una vez y se despliega igual en cualquier entorno.',
+          '<b>Jenkins</b> es la herramienta que mueve esta cinta.',
+        ],
+      },
+      accion() {
+        encuadrar(...vistaCiCd);
+        llaves.forEach(({ grupo, et }, i) => {
+          animar({ dur: 0.8, demora: 0.4 + i * 0.5, curva: curvas.salida, paso: k => { grupo.scale.x = Math.max(k, 0.001); } });
+          mostrar(et, 1.1 + i * 0.5);
+        });
+      },
+    },
+  ];
+
+  function actualizar(dt, t) {
+    if (s.orbitando) {
+      s.orbita += dt * 0.06;
+      cam.pos.copy(posOrbita(s.orbita));
+    }
+    brazos.forEach((h, lado) => {
+      h.rotation.x = 1.02 + (s.tipeando ? Math.sin(t * 18 + lado * 1.7) * 0.05 : 0);
+    });
+    vapor.forEach((v, i) => {
+      const k = (t * 0.35 + i / 3) % 1;
+      v.position.set(-0.62 + Math.sin(k * 6 + i) * 0.02, 0.92 + k * 0.28, 0.12);
+      v.material.opacity = 0.7 * (1 - k);
+      v.scale.setScalar(0.6 + k);
+    });
+    if (s.cinta) rodillos.forEach(r => { r.rotation.y -= dt * 4; });
+    commit.rotation.y += dt * 0.8;
+    if (s.flota) commit.position.y = 1.5 + Math.sin(t * 2) * 0.05;
+    if (s.tambalea) {
+      const amp = 0.006 * s.altura * s.amp;
+      pila.rotation.z = Math.sin(t * 2.4) * amp;
+      pila.rotation.x = Math.sin(t * 1.9 + 1) * amp * 0.6;
+    }
+    if (s.alerta) {
+      const m = bloques[1].userData.m;
+      m.color.setHex(C.mal);
+      m.emissiveIntensity = 0.15 + 0.25 * (0.5 + 0.5 * Math.sin(t * 10));
+    }
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+// ───────────────────────── Escena 2: Jenkins por dentro ─────────────────────────
+function crearEscena2() {
+  const g = new THREE.Group();
+  const s = { gira: false, pulso: false };
+
+  const torre = crearTorre();
+  torre.position.y = -3.6;
+  g.add(torre);
+  const etTorre = etiqueta('<b>Controller</b><span>el cerebro de Jenkins</span>');
+  etTorre.position.y = 3.95;
+  etTorre.visible = false;
+  torre.add(etTorre);
+
+  // JENKINS_HOME: el disco donde vive todo el estado
+  const disco = new THREE.Group();
+  disco.position.set(-1.6, 0, 1.4);
+  disco.scale.setScalar(0.001);
+  for (let i = 0; i < 3; i++) {
+    const d = cilindro(0.42, 0.42, 0.16, mat(C.acero));
+    d.position.y = 0.1 + i * 0.2;
+    const aro = cilindro(0.425, 0.425, 0.03, plano(C.azul), true);
+    aro.position.y = 0.16 + i * 0.2;
+    disco.add(d, aro);
+  }
+  const etDisco = etiqueta('<b>JENKINS_HOME</b><span>jobs · builds · plugins · usuarios</span>');
+  etDisco.position.y = 1.0;
+  etDisco.visible = false;
+  disco.add(etDisco);
+  g.add(disco);
+  const cable = tubo(V(-1.6, 0.12, 1.4), V(0, 0.12, 0), 0.03, plano(C.azul));
+  cable.scale.set(1, 0.001, 1);
+  g.add(cable);
+  const dato = esfera(0.06, plano(C.azul));
+  dato.visible = false;
+  g.add(dato);
+
+  // Anillo de plugins alrededor de la torre
+  const anillo = new THREE.Group();
+  anillo.position.y = 1.55;
+  g.add(anillo);
+  const aroAnillo = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.012, 8, 96), plano(C.azul, { transparent: true, opacity: 0.5 }));
+  aroAnillo.rotation.x = Math.PI / 2;
+  aroAnillo.scale.setScalar(0.001);
+  anillo.add(aroAnillo);
+  const nombresPlugins = [
+    ['Git', 0xf05133], ['GitHub', 0x24292f], ['Pipeline', C.azul],
+    ['Docker', C.docker], ['JUnit', 0x25a162], ['Graph View', 0x8b5cf6],
+  ];
+  const plugins = nombresPlugins.map(([nombre, color], i) => {
+    const a = (i / nombresPlugins.length) * Math.PI * 2;
+    const p = caja(0.46, 0.3, 0.2, mat(color), 0.05);
+    p.userData = { a, destino: V(Math.sin(a) * 1.4, 0, Math.cos(a) * 1.4) };
+    p.position.set(Math.sin(a) * 4.5, 2.5, Math.cos(a) * 4.5);
+    p.rotation.y = a;
+    p.visible = false;
+    // Detalle: el "enchufe" del plugin
+    for (const dx of [-0.07, 0.07]) {
+      const pin = caja(0.03, 0.03, 0.08, mat(0xd9dee8));
+      pin.position.set(dx, 0, -0.13);
+      p.add(pin);
+    }
+    const et = etiqueta(`<b>${nombre}</b>`, 'mini');
+    et.position.y = 0.32;
+    et.visible = false;
+    p.add(et);
+    p.userData.et = et;
+    anillo.add(p);
+    return p;
+  });
+
+  // El job y sus builds
+  const job = new THREE.Group();
+  job.position.set(2.9, 2.05, 0.3);
+  job.scale.setScalar(0.001);
+  const tarjeta = caja(1.5, 0.95, 0.06, mat(0xffffff), 0.03);
+  const cabecera = caja(1.5, 0.2, 0.065, mat(C.azul), 0.03);
+  cabecera.position.y = 0.38;
+  job.add(tarjeta, cabecera);
+  const etJob = etiqueta('<b>Job: hola-mundo</b><span>Pipeline · Jenkinsfile desde GitHub</span>');
+  etJob.visible = false;
+  job.add(etJob);
+  g.add(job);
+  const resultados = [C.bien, C.bien, C.mal, C.bien, C.bien];
+  const builds = resultados.map((color, i) => {
+    const b = caja(0.28, 0.2, 0.05, mat(color), 0.03);
+    b.position.set(2.9, 1.5, 0.3);
+    b.scale.setScalar(0.001);
+    const et = etiqueta(`#${i + 1}`, 'mini');
+    et.position.y = -0.24;
+    et.visible = false;
+    b.add(et);
+    b.userData.et = et;
+    g.add(b);
+    return b;
+  });
+
+  encuadrar(V(-1.0, 2.6, 8.6), V(-1.6, 1.6, 0));
+
+  const pasos = [
+    {
+      titulo: '¿Qué es Jenkins?',
+      texto: 'Un servidor de automatización: ejecuta pipelines cuando algo pasa.',
+      panel: {
+        titulo: 'Jenkins',
+        puntos: [
+          '<b>Open source</b>, escrito en Java. Nació en 2004 como <b>Hudson</b>; desde 2011 se llama Jenkins.',
+          '<b>Self-hosted:</b> lo instalás y lo operás vos. En el proyecto corre en un contenedor Docker en nuestra PC.',
+          'Contraste: <b>Azure DevOps</b> y <b>GitHub Actions</b> son servicios administrados; la infraestructura la pone el proveedor.',
+        ],
+      },
+      accion() {
+        volar(torre, V(0, 0, 0), { dur: 1.8, curva: curvas.suave, fin() { sacudir(0.03); } });
+        mostrar(etTorre, 1.6);
+      },
+    },
+    {
+      titulo: 'El controller',
+      texto: 'El cerebro: coordina todo y guarda el estado.',
+      panel: {
+        titulo: 'Controller y JENKINS_HOME',
+        puntos: [
+          'Sirve la <b>interfaz web</b> y la API.',
+          '<b>Agenda los builds</b> y decide quién los ejecuta.',
+          'Guarda todo en <code>JENKINS_HOME</code>: jobs, historial de builds, plugins y usuarios.',
+          'En el proyecto, <code>JENKINS_HOME</code> es un <b>volumen de Docker</b>: sobrevive aunque se borre y se recree el contenedor.',
+        ],
+      },
+      accion() {
+        encuadrar(V(-1.7, 2.5, 6.8), V(-2.1, 1.2, 0.4));
+        escalar(disco, 1, { dur: 0.8, demora: 0.3, curva: curvas.resorte });
+        animar({ dur: 0.7, demora: 0.8, paso: k => { cable.scale.y = Math.max(k, 0.001); } });
+        mostrar(etDisco, 1.1);
+        luego(1.5, () => { s.pulso = true; dato.visible = true; });
+      },
+    },
+    {
+      titulo: 'Casi todo es un plugin',
+      texto: 'El núcleo es chico: las funciones se enchufan.',
+      panel: {
+        titulo: 'Plugins',
+        puntos: [
+          'Hay <b>más de 1.800 plugins</b>: Git, GitHub, Docker, reportes de tests, vistas…',
+          'Los nuestros están en <code>plugins.txt</code> y se instalan al construir la imagen de Jenkins: <b>plugins como código</b>.',
+          'Contra: cada plugin es una dependencia más para mantener, actualizar y revisar por seguridad.',
+        ],
+      },
+      accion() {
+        encuadrar(V(-1.2, 3.3, 6.6), V(-1.6, 1.5, 0));
+        escalar(aroAnillo, 1, { dur: 0.8, curva: curvas.salida });
+        plugins.forEach((p, i) => {
+          luego(0.3 + i * 0.18, () => { p.visible = true; });
+          volar(p, p.userData.destino, { dur: 0.9, demora: 0.3 + i * 0.18, arco: 0.4, curva: curvas.salida, fin() { p.userData.et.visible = true; } });
+        });
+        luego(1.6, () => { s.gira = true; });
+      },
+    },
+    {
+      titulo: 'Jobs y builds',
+      texto: 'La receta, y cada vez que se ejecuta.',
+      panel: {
+        titulo: 'Job, build y resultado',
+        puntos: [
+          '<b>Job:</b> qué hacer, con qué código y cuándo dispararlo.',
+          '<b>Build:</b> cada ejecución del job, numerada (#1, #2…), con su consola, su resultado y su duración.',
+          'Resultados: <b>SUCCESS</b>, <b>FAILURE</b>, <b>UNSTABLE</b> (tests fallidos) o <b>ABORTED</b>.',
+          'El número de build es la versión de nuestra app: <code>BUILD_NUMBER</code>. En ADO: pipeline ≈ job, run ≈ build.',
+        ],
+      },
+      accion() {
+        encuadrar(V(0.9, 2.6, 7.6), V(0.5, 1.5, 0));
+        escalar(job, 1, { dur: 0.7, demora: 0.2, curva: curvas.resorte });
+        mostrar(etJob, 0.7);
+        builds.forEach((b, i) => {
+          const destino = V(2.24 + i * 0.33, 1.2, 0.3);
+          escalar(b, 1, { dur: 0.35, demora: 1.0 + i * 0.35, curva: curvas.salida });
+          volar(b, destino, {
+            dur: 0.5, demora: 1.0 + i * 0.35, curva: curvas.salida,
+            fin() { b.userData.et.visible = true; destellar(torre); },
+          });
+        });
+      },
+    },
+  ];
+
+  const tmp = V();
+  function actualizar(dt, t) {
+    parpadear(torre, t);
+    if (s.gira) anillo.rotation.y += dt * 0.22;
+    plugins.forEach(p => {
+      p.position.y = Math.sin(t * 1.5 + p.userData.a * 2) * 0.04;
+      // Los plugins que pasan por detrás de la torre se atenúan: la etiqueta no tapa lo de adelante.
+      p.getWorldPosition(tmp);
+      p.userData.et.element.style.opacity = tmp.z > -0.3 ? 1 : 0.3;
+    });
+    if (s.pulso) {
+      const k = (Math.sin(t * 1.6) + 1) / 2;
+      dato.position.set(lerp(-1.6, 0, k), 0.2, lerp(1.4, 0, k));
+    }
+    job.position.y = 2.05 + Math.sin(t * 1.2) * 0.03;
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+// ───────────────────────── Escena 3: agentes y Docker ─────────────────────────
+function crearEscena3() {
+  const g = new THREE.Group();
+  const s = { agentes: false, ciclo: false, t0: null, sello: false };
+  const ZB = 12, ZC = 24, ZD = 36; // cada momento en su propia zona: la cámara viaja entre ellas
+
+  // Zona A: controller y agentes fijos
+  const torre = crearTorre();
+  torre.position.set(-1.4, 0, -0.4);
+  g.add(torre);
+  const etTorre = etiqueta('<b>Controller</b><span>coordina</span>');
+  etTorre.position.set(-1.4, 3.95, -0.4);
+  g.add(etTorre);
+  const agentes = [V(1.4, 0, -1.2), V(2.6, 0, 0.6)].map((p, i) => {
+    const a = crearServidor(`<b>Agente ${i + 1}</b><span>2 executors</span>`);
+    a.position.copy(p);
+    a.scale.setScalar(0.001);
+    a.userData.et.visible = false;
+    g.add(a);
+    const desde = V(-1.4, 2.3, -0.4), hasta = p.clone().add(V(0, 1.18, 0));
+    const cable = tubo(desde, hasta, 0.015, plano(C.azul, { transparent: true, opacity: 0.5 }));
+    cable.visible = false;
+    const paquete = esfera(0.07, plano(C.azul));
+    paquete.visible = false;
+    g.add(cable, paquete);
+    return { a, cable, paquete, desde, hasta };
+  });
+
+  // Zona B: agentes efímeros que comparten el workspace
+  [-1, 1].forEach(lado => {
+    const base = caja(1.5, 0.04, 1.1, mat(C.zona), 0.02);
+    base.position.set(ZB + lado, 0.02, 0);
+    g.add(base);
+  });
+  const efimeros = ['Build', 'Test'].map((nombre, j) => {
+    const c = crearContenedor({ ancho: 1.1, alto: 0.7, color: C.dotnet, html: `<b>dotnet/sdk:10.0</b><span>stage ${nombre}</span>` });
+    c.position.set(ZB - 1 + j * 2, 0.04, 0);
+    c.scale.setScalar(0.001);
+    c.userData.et.visible = false;
+    const barra = barraProgreso(0.9);
+    barra.position.set(-0.45, 0.14, 0.31);
+    c.add(barra);
+    g.add(c);
+    return { c, barra };
+  });
+  const carpeta = crearCarpeta('<b>workspace</b><span>volumen compartido</span>');
+  carpeta.position.set(ZB, 0, 1.8);
+  carpeta.scale.setScalar(0.001);
+  carpeta.userData.et.visible = false;
+  g.add(carpeta);
+  const enlaces = [0, 1].map(j => {
+    const e = tubo(V(ZB, 0.08, 1.55), V(ZB - 1 + j * 2, 0.08, 0.45), 0.02, plano(C.ambar));
+    e.visible = false;
+    g.add(e);
+    return e;
+  });
+
+  // Zona C: una imagen y los contenedores que salen de ella
+  const imagen = crearImagen([
+    ['Debian · sistema base', C.grisOscuro],
+    ['.NET runtime · aspnet:10.0', C.dotnet],
+    ['HolaMundo.Api · nuestra app', C.azul],
+  ], { ancho: 1.3, alto: 0.26, oculta: true, html: '<b>Imagen</b><span>el molde: inmutable, en capas</span>' });
+  imagen.position.set(ZC - 1.6, 0, 0);
+  g.add(imagen);
+  const copias = [V(ZC + 1.6, 0, -1.3), V(ZC + 2.3, 0, 0.1), V(ZC + 1.6, 0, 1.5)].map((destino, i) => {
+    const c = crearContenedor({ ancho: 0.8, alto: 0.5, fondo: 0.5, color: C.azul, html: i === 1 ? '<b>Contenedores</b><span>las piezas: imagen en ejecución</span>' : '' });
+    c.position.set(ZC - 1.6, 0.5, 0);
+    c.scale.setScalar(0.001);
+    if (c.userData.et) c.userData.et.visible = false;
+    const led = esfera(0.04, plano(C.bien));
+    led.position.set(0.3, 0.42, 0.26);
+    c.add(led);
+    c.userData.led = led;
+    c.userData.destino = destino;
+    g.add(c);
+    return c;
+  });
+
+  // Zona D: el socket de Docker
+  const motor = caja(2.6, 0.9, 1.4, mat(C.docker), 0.08);
+  motor.position.set(ZD + 1.7, 0.45, -1.0);
+  for (let i = 0; i < 5; i++) {
+    const rejilla = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.01), plano(0x6c9bf4));
+    rejilla.position.set(-0.9 + i * 0.16, 0, 0.705);
+    motor.add(rejilla);
+  }
+  const etMotor = etiqueta('<b>Docker Engine</b><span>el Docker de tu PC</span>');
+  etMotor.position.set(ZD + 1.7, 1.3, -1.0);
+  g.add(motor, etMotor);
+  const vidrio = caja(1.5, 2.3, 1.5, new THREE.MeshStandardMaterial({ color: 0xbfd6ff, transparent: true, opacity: 0.22, roughness: 0.1, depthWrite: false }), 0.06);
+  vidrio.position.set(ZD - 1.4, 1.15, -0.2);
+  vidrio.castShadow = false;
+  const mini = crearTorre();
+  mini.scale.setScalar(0.6);
+  mini.position.set(ZD - 1.4, 0, -0.2);
+  const etVidrio = etiqueta('<b>Contenedor jenkins</b><span>con el CLI de Docker</span>');
+  etVidrio.position.set(ZD - 1.4, 2.7, -0.2);
+  g.add(vidrio, mini, etVidrio);
+  const socket = tubo(V(ZD - 0.65, 0.45, -0.4), V(ZD + 0.4, 0.45, -0.8), 0.045, mat(C.texto));
+  socket.scale.set(1, 0.001, 1);
+  const enchufe = caja(0.16, 0.16, 0.16, mat(C.ambar), 0.03);
+  enchufe.position.set(ZD + 0.36, 0.45, -0.78);
+  enchufe.scale.setScalar(0.001);
+  g.add(socket, enchufe);
+  const etSocket = etiqueta('<b>/var/run/docker.sock</b>', 'codigo');
+  etSocket.position.set(ZD - 0.1, 0.95, -0.6);
+  etSocket.visible = false;
+  const aviso = etiqueta('<b>⚠ Riesgo</b><span>control total del Docker de la PC</span>', 'mal pulso');
+  aviso.position.set(ZD - 0.1, 1.75, -0.6);
+  aviso.visible = false;
+  g.add(etSocket, aviso);
+  const hijos = [
+    [C.dotnet, V(ZD + 0.5, 0, 1.4), '<b>dotnet/sdk</b><span>al lado, no adentro</span>'],
+    [C.bien, V(ZD + 2.1, 0, 1.4), '<b>staging</b>'],
+  ].map(([color, destino, html]) => {
+    const c = crearContenedor({ ancho: 0.9, alto: 0.55, fondo: 0.5, color, html });
+    c.position.set(ZD + 1.7, 0.5, -1.0);
+    c.scale.setScalar(0.001);
+    c.userData.et.visible = false;
+    c.userData.destino = destino;
+    g.add(c);
+    return c;
+  });
+
+  encuadrar(...vistaHacia(V(0.6, 1.3, -0.3), 8));
+
+  const pasos = [
+    {
+      titulo: 'Agentes: quién hace el trabajo',
+      texto: 'El controller reparte; los agentes ejecutan.',
+      panel: {
+        titulo: 'Agentes y executors',
+        puntos: [
+          'El <b>controller</b> coordina; los <b>agentes</b> ejecutan los builds.',
+          'Cada agente tiene <b>executors</b>: cuántos trabajos puede correr en paralelo.',
+          'Se suman agentes con otras herramientas u otros sistemas operativos: así escala Jenkins.',
+          'En ADO es lo mismo: <b>agent pools</b>, con agentes Microsoft-hosted o self-hosted.',
+        ],
+      },
+      accion() {
+        agentes.forEach(({ a, cable }, i) => {
+          escalar(a, 1, { dur: 0.8, demora: 0.4 + i * 0.4, curva: curvas.resorte });
+          mostrar(a.userData.et, 1.0 + i * 0.4);
+          luego(1.2 + i * 0.4, () => { cable.visible = true; });
+        });
+        luego(1.8, () => { s.agentes = true; });
+      },
+    },
+    {
+      titulo: 'Agentes efímeros',
+      texto: 'En el proyecto, cada stage de .NET corre en un contenedor que nace y se borra.',
+      panel: {
+        titulo: 'Un contenedor por stage',
+        puntos: [
+          'No hay agentes fijos: cada stage de .NET pide un contenedor <code>dotnet/sdk:10.0</code>.',
+          'El contenedor <b>nace</b>, compila o prueba, y <b>se borra</b>. Jenkins no necesita tener .NET instalado.',
+          'Comparten el <b>workspace</b>: lo que compila Build es lo que prueba Test.',
+          'Cada build arranca limpio y reproducible. En ADO: <code>container:</code> en un job.',
+        ],
+      },
+      accion() {
+        s.agentes = false;
+        encuadrar(...vistaHacia(V(ZB, 0.9, 0.5), 6.6));
+        escalar(carpeta, 1, { dur: 0.7, demora: 0.3, curva: curvas.resorte });
+        mostrar(carpeta.userData.et, 0.8);
+        luego(1.0, () => enlaces.forEach(e => { e.visible = true; }));
+        luego(1.2, () => { s.ciclo = true; s.t0 = null; });
+      },
+    },
+    {
+      titulo: 'Imagen y contenedor',
+      texto: 'El molde y las piezas.',
+      panel: {
+        titulo: 'Las dos ideas de Docker',
+        puntos: [
+          '<b>Imagen:</b> una plantilla inmutable, armada en capas. Es el molde.',
+          '<b>Contenedor:</b> una imagen en ejecución. De un molde salen muchas piezas iguales.',
+          'Las capas se cachean: si solo cambia la app, se reconstruye solo la última.',
+          'La nuestra sale de un <code>Dockerfile</code> multi-stage: el SDK compila y la imagen final lleva solo el runtime.',
+        ],
+      },
+      accion() {
+        s.ciclo = false;
+        encuadrar(...vistaHacia(V(ZC + 0.4, 0.9, 0.1), 7));
+        apilar(imagen, 0.4);
+        copias.forEach((c, i) => {
+          escalar(c, 1, { dur: 0.5, demora: 2.4 + i * 0.4, curva: curvas.salida });
+          volar(c, c.userData.destino, { arco: 0.9, dur: 0.9, demora: 2.4 + i * 0.4, fin() { if (c.userData.et) c.userData.et.visible = true; } });
+        });
+        luego(3.6, () => { s.sello = true; });
+      },
+    },
+    {
+      titulo: 'El socket de Docker',
+      texto: 'Jenkins usa el Docker de la PC: los contenedores nacen al lado, no adentro.',
+      panel: {
+        titulo: 'Socket montado',
+        puntos: [
+          'Jenkins corre en un contenedor, pero maneja el Docker de la PC a través del socket <code>/var/run/docker.sock</code>.',
+          'Los contenedores que lanza nacen <b>al lado</b> de Jenkins, no adentro (no es Docker-in-Docker).',
+          '<b>Riesgo:</b> quien usa el socket controla todo el Docker de la PC; equivale a ser root.',
+          'Aceptable en un laboratorio; en una empresa se usan agentes aislados.',
+        ],
+      },
+      accion() {
+        encuadrar(...vistaHacia(V(ZD + 0.4, 1.0, -0.1), 8));
+        animar({ dur: 0.8, demora: 0.4, paso: k => { socket.scale.y = Math.max(k, 0.001); } });
+        escalar(enchufe, 1, { dur: 0.4, demora: 1.1, curva: curvas.resorte });
+        mostrar(etSocket, 1.2);
+        hijos.forEach((c, i) => {
+          escalar(c, 1, { dur: 0.6, demora: 1.8 + i * 0.5, curva: curvas.salida });
+          volar(c, c.userData.destino, { arco: 1.1, dur: 1.0, demora: 1.8 + i * 0.5, fin() { c.userData.et.visible = true; } });
+        });
+        mostrar(aviso, 3.4);
+      },
+    },
+  ];
+
+  function actualizar(dt, t) {
+    parpadear(torre, t);
+    parpadear(mini, t);
+    agentes.forEach(({ a, paquete, desde, hasta }, j) => {
+      a.userData.leds.forEach((led, k) => { led.visible = Math.sin(t * (4 + k) + j * 2) > -0.3; });
+      if (!s.agentes) { paquete.visible = false; return; }
+      const q = (t * 0.5 + j * 0.5) % 1;
+      paquete.visible = true;
+      paquete.position.lerpVectors(desde, hasta, curvas.suave(q));
+      a.userData.slots.forEach((slot, k) => {
+        slot.material.color.setHex(Math.sin(t * 1.3 + j * 1.7 + k * 2.1) > -0.2 ? C.azul : C.gris);
+      });
+    });
+    if (s.ciclo) {
+      if (s.t0 === null) s.t0 = t;
+      efimeros.forEach(({ c, barra }, j) => {
+        // Ciclo de vida: nace, trabaja, se borra. Test arranca cuando Build termina.
+        const q = (((t - s.t0) / 5 - j * 0.5) % 1 + 1) % 1;
+        let escala = 0.001;
+        if (q < 0.12) escala = curvas.salida(q / 0.12);
+        else if (q < 0.42) escala = 1;
+        else if (q < 0.52) escala = 1 - curvas.entrada((q - 0.42) / 0.1);
+        c.scale.setScalar(Math.max(escala, 0.001));
+        c.userData.et.visible = escala > 0.6;
+        barra.scale.x = q < 0.12 ? 0.001 : Math.max(Math.min((q - 0.12) / 0.3, 1), 0.001);
+      });
+    }
+    if (s.sello) copias.forEach((c, i) => c.userData.led.scale.setScalar(0.8 + 0.35 * Math.sin(t * 4 + i * 2)));
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+// ───────────────────────── Escena 4: pipeline como código ─────────────────────────
+const JENKINSFILE = [
+  ['pipeline {', 'estructura'],
+  ['  agent any', 'estructura'],
+  ["  triggers { githubPush(); pollSCM('H/2 * * * *') }", 'triggers'],
+  ['  stages {', 'stages'],
+  ["    stage('Build') {", 'stages'],
+  ["      agent { docker { image 'dotnet/sdk:10.0' } }", 'stages'],
+  ["      steps { sh 'dotnet build' }", 'steps'],
+  ['    }', 'stages'],
+  ["    stage('Test')           { steps { sh 'dotnet test' } }", 'steps'],
+  ["    stage('Docker Image')   { steps { sh 'docker build …' } }", 'steps'],
+  ["    stage('Deploy Staging') { steps { sh 'docker run …' } }", 'steps'],
+  ["    stage('Smoke Test')     { steps { sh 'curl …' } }", 'steps'],
+  ['  }', 'stages'],
+  ['  post { success { … }  failure { … } }', 'post'],
+  ['}', 'estructura'],
+];
+function resaltarGroovy(linea) {
+  return linea.split(/('[^']*')/).map(parte => (parte.startsWith("'")
+    ? `<span class="str">${parte}</span>`
+    : parte.replace(/\b(pipeline|agent|any|triggers|stages|stage|steps|post|success|failure|docker|image|sh|githubPush|pollSCM)\b/g, '<span class="kw">$1</span>'))).join('');
+}
+function crearEditor() {
+  const div = document.createElement('div');
+  div.className = 'editor';
+  div.innerHTML = '<div class="barra"><i style="background:#e5484d"></i><i style="background:#f5a524"></i><i style="background:#22b573"></i><span>Jenkinsfile</span></div><pre>'
+    + JENKINSFILE.map(([l, grupo]) => `<div class="linea" data-grupo="${grupo}">${resaltarGroovy(l)}</div>`).join('') + '</pre>';
+  const obj = new CSS2DObject(div);
+  obj.userData.resaltar = grupo => {
+    div.classList.toggle('enfocado', !!grupo);
+    div.querySelectorAll('.linea').forEach(l => l.classList.toggle('activa', l.dataset.grupo === grupo));
+  };
+  return obj;
+}
+
+function crearEscena4() {
+  const g = new THREE.Group();
+  const s = { polling: false, webhook: null, t0: null, ultimo: -1, flota: false };
+  const ZA = -12; // zona del Jenkinsfile
+
+  // Zona A: el repo con sus archivos y el editor
+  const repo = caja(2.6, 0.08, 1.6, mat(C.zona), 0.03);
+  repo.position.set(ZA + 2.6, 0.04, 0);
+  const etRepo = etiqueta('<b>Repositorio</b><span>código + pipeline, juntos</span>', 'mini');
+  etRepo.position.set(ZA + 2.6, 0.15, 1.1);
+  g.add(repo, etRepo);
+  [['src/', C.grisOscuro], ['Dockerfile', C.docker], ['Jenkinsfile', C.azul]].forEach(([nombre, color], i) => {
+    const a = new THREE.Group();
+    const hoja = caja(0.75, 1.0, 0.04, mat(0xffffff), 0.015);
+    hoja.position.y = 0.5;
+    const franja = caja(0.75, 0.14, 0.045, mat(color), 0.02);
+    franja.position.y = 0.93;
+    a.add(hoja, franja);
+    for (let r = 0; r < 4; r++) {
+      const renglon = new THREE.Mesh(new THREE.PlaneGeometry(0.5 - (r % 2) * 0.15, 0.03), plano(0xc9d3e3));
+      renglon.position.set(-0.05 + (r % 2) * -0.07, 0.72 - r * 0.13, 0.025);
+      a.add(renglon);
+    }
+    if (nombre === 'Jenkinsfile') {
+      const brillo = aura(C.azul, 2.2);
+      brillo.position.set(0, 0.5, -0.1);
+      a.add(brillo);
+    }
+    a.position.set(ZA + 1.8 + i * 0.8, 0.08, -0.3 + i * 0.25);
+    a.rotation.y = -0.25 + i * 0.12;
+    const et = etiqueta(`<b>${nombre}</b>`, 'mini');
+    et.position.y = 1.25;
+    a.add(et);
+    g.add(a);
+  });
+  const editor = crearEditor();
+  editor.position.set(ZA - 1.3, 1.7, 0);
+  g.add(editor);
+
+  // Zona B (x ≈ 0): GitHub, Jenkins, el muro del NAT y el túnel
+  const nube = crearNube('<b>GitHub</b>');
+  nube.position.set(-4.4, 2.6, 0);
+  const torre = crearTorre();
+  torre.position.set(2.6, 0, 0);
+  const etTorre = etiqueta('<b>Jenkins</b><span>en tu PC</span>');
+  etTorre.position.set(2.6, 3.95, 0);
+  g.add(nube, torre, etTorre);
+  const zonaPc = caja(4.4, 0.03, 4.0, mat(C.zona), 0.02);
+  zonaPc.position.set(2.1, 0.015, 0);
+  zonaPc.scale.setScalar(0.001);
+  const etZona = etiqueta('<b>Tu PC</b><span>red privada</span>', 'mini');
+  etZona.position.set(3.6, 0.15, 1.9);
+  etZona.visible = false;
+  g.add(zonaPc, etZona);
+  const muro = crearMuro(4.0, 2.0);
+  muro.rotation.y = Math.PI / 2;
+  muro.position.set(-0.9, -2.3, 0);
+  const etMuro = etiqueta('<b>Router / NAT</b><span>no deja entrar conexiones</span>');
+  etMuro.position.set(0, 2.45, 0);
+  etMuro.visible = false;
+  muro.add(etMuro);
+  g.add(muro);
+  const ngrokNube = caja(0.5, 0.3, 0.4, mat(C.ngrok), 0.04);
+  ngrokNube.position.set(-3.4, 1.0, -1.4);
+  ngrokNube.scale.setScalar(0.001);
+  const etNgrokNube = etiqueta('<b>ngrok</b><span>URL pública fija</span>', 'mini');
+  etNgrokNube.position.set(-3.4, 0.45, -1.4);
+  etNgrokNube.visible = false;
+  const ngrokPc = caja(0.5, 0.35, 0.4, mat(C.ngrok), 0.04);
+  ngrokPc.position.set(0.6, 0.175, -1.4);
+  ngrokPc.scale.setScalar(0.001);
+  const etNgrokPc = etiqueta('<b>ngrok</b><span>solo deja pasar /github-webhook/</span>', 'mini');
+  etNgrokPc.position.set(0.6, 0.75, -1.4);
+  etNgrokPc.visible = false;
+  g.add(ngrokNube, etNgrokNube, ngrokPc, etNgrokPc);
+  const puntosTunel = [V(-3.4, 1.0, -1.4), V(-2.3, 2.5, -1.4), V(-0.9, 2.9, -1.4), V(0.3, 2.2, -1.4), V(0.6, 0.5, -1.4)];
+  const tunel = crearTunel(puntosTunel);
+  ocultarTunel(tunel);
+  g.add(tunel);
+
+  const caminoDirecto = new THREE.CatmullRomCurve3([V(-4.1, 2.1, 0.2), V(-0.9, 1.6, 0.2), V(2.6, 2.1, 0)]);
+  const caminoTunel = new THREE.CatmullRomCurve3([V(-4.1, 2.1, -0.3), ...puntosTunel, V(1.6, 1.4, -0.8), V(2.6, 2.1, 0)]);
+  const caminoPolling = new THREE.CatmullRomCurve3([V(2.6, 2.9, 0), V(-0.9, 4.3, 0), V(-4.0, 3.1, 0)]);
+  // Hasta dónde llega el webhook antes de chocar con el muro.
+  let kMuro = 0;
+  while (kMuro < 1 && caminoDirecto.getPoint(kMuro).x < -1.2) kMuro += 0.005;
+
+  const ping = esfera(0.09, plano(C.ambar));
+  ping.add(aura(C.ambar, 0.6));
+  const etPing = etiqueta('¿hay cambios?', 'mini');
+  etPing.position.y = 0.28;
+  ping.add(etPing);
+  ping.visible = false;
+  etPing.visible = false;
+  const sobre = crearSobre();
+  const commit = crearCommit('<b>commit</b> a1b2c3d');
+  commit.position.set(-7.2, 4.6, 0);
+  commit.scale.setScalar(0.001);
+  commit.userData.et.visible = false;
+  g.add(ping, sobre, commit);
+
+  encuadrar(...vistaHacia(V(ZA + 0.4, 1.3, 0), 8));
+
+  const pasos = [
+    {
+      titulo: 'El Jenkinsfile',
+      texto: 'El pipeline es código: vive en el repo, junto a la aplicación.',
+      panel: {
+        titulo: 'Pipeline como código',
+        puntos: [
+          'Es un archivo de texto en el repo: se versiona, se revisa en un pull request y cualquiera lo puede leer.',
+          'Estructura declarativa: <code>pipeline</code> → <code>agent</code> → <code>stages</code> → <code>steps</code>.',
+          '<code>post</code>: qué hacer al final según el resultado (success, failure, always).',
+          'En ADO es el <code>azure-pipelines.yml</code>: misma idea, otra sintaxis.',
+        ],
+      },
+      accion() {
+        editor.element.style.opacity = 1;
+        ['estructura', 'stages', 'steps', 'post', 'triggers'].forEach((grupo, i) => luego(0.9 + i * 1.3, () => editor.userData.resaltar(grupo)));
+      },
+    },
+    {
+      titulo: '¿Cuándo se dispara? Polling',
+      texto: 'Jenkins le pregunta a GitHub, una y otra vez.',
+      panel: {
+        titulo: 'Polling (pull)',
+        puntos: [
+          'Jenkins le pregunta a GitHub cada 2 minutos si hay commits nuevos.',
+          'Es simple, y nadie necesita llegar a Jenkins desde afuera.',
+          'Contra: hasta 2 minutos de demora, y muchas consultas que responden "no".',
+          "<code>pollSCM('H/2 * * * *')</code>: la <code>H</code> reparte el minuto exacto entre jobs.",
+        ],
+      },
+      accion() {
+        editor.element.style.opacity = 0;
+        encuadrar(...vistaHacia(V(-0.9, 2.0, 0), 9.5));
+        s.polling = true;
+      },
+    },
+    {
+      titulo: 'Webhook',
+      texto: 'Al revés: GitHub avisa a Jenkins apenas llega un push.',
+      panel: {
+        titulo: 'Webhook (push)',
+        puntos: [
+          'GitHub avisa en el momento en que llega un push: el build arranca en segundos.',
+          'Requiere que GitHub pueda llegar a Jenkins por internet, a <code>/github-webhook/</code>.',
+          'En el <code>Jenkinsfile</code>: <code>githubPush()</code>. El polling queda como respaldo.',
+        ],
+      },
+      accion() {
+        s.polling = false;
+        escalar(commit, 1, { dur: 0.5, demora: 0.3, curva: curvas.resorte });
+        mostrar(commit.userData.et, 0.6);
+        volar(commit, V(-4.4, 2.9, 0.4), {
+          dur: 1.3, demora: 0.6, arco: 0.6,
+          fin() { s.flota = true; commit.userData.et.visible = false; s.webhook = 'directo'; s.t0 = null; },
+        });
+      },
+    },
+    {
+      titulo: 'El problema: NAT',
+      texto: 'Desde la PC se puede salir a internet, pero nadie de afuera puede entrar.',
+      panel: {
+        titulo: 'Por qué GitHub no llega',
+        puntos: [
+          'La PC está en una red privada, detrás de un router que hace <b>NAT</b>.',
+          'Desde adentro se puede <b>salir</b> (por eso el polling funciona), pero desde afuera nadie puede <b>entrar</b>.',
+          'El webhook choca contra el router: GitHub no tiene a dónde mandarlo.',
+          'En ADO no pasa: el servicio está en la nube, y sus agentes self-hosted también salen hacia afuera.',
+        ],
+      },
+      accion() {
+        volar(muro, V(-0.9, 0, 0), { dur: 1.4, curva: curvas.salida, fin() { etMuro.visible = true; sacudir(0.04); } });
+        escalar(zonaPc, 1, { dur: 0.8, demora: 0.6, curva: curvas.salida });
+        mostrar(etZona, 1.2);
+        luego(1.5, () => { s.webhook = 'bloqueado'; s.t0 = null; s.polling = true; });
+      },
+    },
+    {
+      titulo: 'La solución: un túnel',
+      texto: 'ngrok abre la conexión desde adentro, y GitHub entra por ahí.',
+      panel: {
+        titulo: 'Túnel ngrok',
+        puntos: [
+          'ngrok abre una conexión <b>saliente</b> desde la PC hacia su nube, y la deja abierta.',
+          'GitHub manda el webhook a una URL pública fija, y ngrok lo reenvía por el túnel hasta Jenkins.',
+          'Una política deja pasar solo <code>/github-webhook/</code>: la interfaz de Jenkins no queda expuesta.',
+          'Mejora pendiente para producción: firmar el webhook con un <b>secret</b>.',
+        ],
+      },
+      accion() {
+        s.webhook = null;
+        s.polling = false;
+        encuadrar(...vistaHacia(V(-0.9, 1.7, -0.6), 9.5));
+        escalar(ngrokPc, 1, { dur: 0.5, demora: 0.3, curva: curvas.resorte });
+        escalar(ngrokNube, 1, { dur: 0.5, demora: 0.5, curva: curvas.resorte });
+        mostrar(etNgrokPc, 0.6);
+        mostrar(etNgrokNube, 0.8);
+        crecerTunel(tunel, { dur: 1.6, demora: 0.9 });
+        luego(2.6, () => { s.webhook = 'tunel'; s.t0 = null; });
+      },
+    },
+  ];
+
+  function actualizar(dt, t) {
+    parpadear(torre, t);
+    commit.rotation.y += dt * 0.8;
+    if (s.flota) commit.position.y = 2.9 + Math.sin(t * 2) * 0.05;
+
+    if (s.polling) {
+      const q = (t % 3.2) / 3.2;
+      ping.visible = etPing.visible = q < 0.9;
+      if (q < 0.45) {
+        ping.position.copy(caminoPolling.getPoint(curvas.suave(q / 0.45)));
+        rotular(etPing, '¿hay cambios?');
+      } else if (q < 0.9) {
+        ping.position.copy(caminoPolling.getPoint(1 - curvas.suave((q - 0.45) / 0.45)));
+        rotular(etPing, 'no');
+      }
+    } else {
+      ping.visible = etPing.visible = false;
+    }
+
+    if (s.webhook) {
+      if (s.t0 === null) { s.t0 = t; s.ultimo = -1; }
+      const periodo = s.webhook === 'tunel' ? 4 : 3.2;
+      const ciclo = Math.floor((t - s.t0) / periodo);
+      const q = ((t - s.t0) % periodo) / periodo;
+      const et = sobre.userData.et;
+      if (s.webhook === 'directo' || s.webhook === 'tunel') {
+        const tramo = s.webhook === 'tunel' ? 0.55 : 0.35;
+        const camino = s.webhook === 'tunel' ? caminoTunel : caminoDirecto;
+        sobre.visible = et.visible = q < tramo;
+        rotular(et, 'webhook');
+        if (q < tramo) sobre.position.copy(camino.getPoint(curvas.suave(q / tramo)));
+        else if (ciclo !== s.ultimo) { s.ultimo = ciclo; destellar(torre); }
+      } else if (s.webhook === 'bloqueado') {
+        sobre.visible = et.visible = q < 0.5;
+        if (q < 0.3) {
+          sobre.position.copy(caminoDirecto.getPoint(kMuro * curvas.entrada(q / 0.3)));
+          rotular(et, 'webhook');
+        } else if (q < 0.5) {
+          // Rebota contra el muro y cae
+          const k = (q - 0.3) / 0.2;
+          const p = caminoDirecto.getPoint(Math.max(kMuro - 0.08 * k, 0));
+          sobre.position.set(p.x, p.y - k * k * 1.2, p.z);
+          rotular(et, '✗ no puede entrar', 'mal');
+          if (ciclo !== s.ultimo) { s.ultimo = ciclo; sacudir(0.02); }
+        }
+      }
+    } else {
+      sobre.visible = sobre.userData.et.visible = false;
+    }
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+// ───────────────────────── Escenas 5 y 6: el circuito completo ─────────────────────────
+const jsonStaging = version => `{ "mensaje": "Hola mundo…", "version": "<b>${version}</b>" }`;
+
+// Arma toda la arquitectura del proyecto y devuelve las acciones del pipeline,
+// para que las escenas 5 y 6 cuenten historias distintas con las mismas piezas.
+function crearCircuito(g, { version, imagenLista }) {
+  const zona = caja(10.2, 0.03, 4.6, mat(C.zona), 0.02);
+  zona.position.set(1.4, 0.015, 0.3);
+  zona.receiveShadow = true;
+  const etZona = etiqueta('<b>Tu PC</b><span>Docker Desktop · red ci-local</span>', 'mini');
+  etZona.position.set(5.6, 0.15, 2.45);
+  g.add(zona, etZona);
+
+  const nube = crearNube('<b>GitHub</b><span>repo + webhook</span>');
+  nube.position.set(-6.4, 2.4, 0);
+  const muro = crearMuro(4.6, 1.6);
+  muro.rotation.y = Math.PI / 2;
+  muro.position.set(-3.75, 0, 0.3);
+  const etMuro = etiqueta('<b>Router / NAT</b>', 'mini');
+  etMuro.position.set(-3.75, 1.9, 2.4);
+  g.add(nube, muro, etMuro);
+
+  const ngrokNube = caja(0.5, 0.3, 0.4, mat(C.ngrok), 0.04);
+  ngrokNube.position.set(-5.3, 0.85, -1.3);
+  const ngrokPc = caja(0.5, 0.35, 0.4, mat(C.ngrok), 0.04);
+  ngrokPc.position.set(-2.9, 0.175, -1.3);
+  const etNgrok = etiqueta('<b>ngrok</b>', 'mini');
+  etNgrok.position.set(-2.9, 0.65, -1.3);
+  const puntosTunel = [V(-5.3, 0.85, -1.3), V(-4.6, 2.2, -1.3), V(-3.75, 2.5, -1.3), V(-3.0, 2.0, -1.3), V(-2.9, 0.45, -1.3)];
+  const tunel = crearTunel(puntosTunel);
+  g.add(ngrokNube, ngrokPc, etNgrok, tunel);
+
+  const puesto = crearPuesto();
+  puesto.position.set(-2.6, 0, 1.6);
+  const torre = crearTorre();
+  torre.position.set(-1.0, 0, -0.3);
+  torre.scale.setScalar(0.8);
+  const etTorre = etiqueta('<b>Jenkins</b><span>controller</span>');
+  etTorre.position.set(-1.0, 3.35, -0.3);
+  g.add(puesto, torre, etTorre);
+
+  const sdk = crearContenedor({ ancho: 1.1, alto: 0.7, color: C.dotnet, html: '<b>dotnet/sdk</b><span>agente efímero</span>' });
+  sdk.position.set(1.2, 0, 0.3);
+  sdk.scale.setScalar(0.001);
+  sdk.userData.et.visible = false;
+  const barra = barraProgreso(0.9);
+  barra.position.set(-0.45, 0.14, 0.31);
+  sdk.add(barra);
+  g.add(sdk);
+
+  const imagen = crearImagen([['', C.grisOscuro], ['', C.dotnet], ['', C.azul]], {
+    ancho: 0.9, alto: 0.22, oculta: !imagenLista, html: `<b>hola-mundo:${version}</b><span>imagen Docker</span>`,
+  });
+  imagen.position.set(3.3, 0, 0.3);
+  g.add(imagen);
+
+  const staging = crearContenedor({ ancho: 1.2, alto: 0.8, color: C.bien, html: '<b>hola-mundo-staging</b><span>puerto 8081</span>' });
+  staging.position.set(5.5, 0, 0.3);
+  const brilloStaging = aura(C.bien, 2.6);
+  brilloStaging.position.set(5.5, 0.5, 0.3);
+  const json = etiqueta(jsonStaging(version), 'codigo');
+  json.position.set(5.5, 1.85, 0.3);
+  g.add(staging, brilloStaging, json);
+
+  const etapas = crearEtapas();
+  etapas.position.set(1.4, 0.05, 2.75);
+  g.add(etapas);
+
+  const sobre = crearSobre();
+  const paquete = caja(0.18, 0.18, 0.18, mat(C.azul, { emisivo: C.azul, intensidad: 0.3 }), 0.03);
+  paquete.visible = false;
+  const sonda = esfera(0.09, plano(C.ambar));
+  sonda.add(aura(C.ambar, 0.7));
+  const etSonda = etiqueta('curl', 'mini codigo');
+  etSonda.position.y = 0.26;
+  sonda.add(etSonda);
+  sonda.visible = etSonda.visible = false;
+  g.add(sobre, paquete, sonda);
+
+  const caminos = {
+    push: [V(-2.6, 1.1, 1.6), V(-3.75, 3.4, 1.2), V(-5.4, 3.2, 0.6), V(-6.2, 2.6, 0.2)],
+    webhook: [V(-6.0, 1.9, -0.6), ...puntosTunel, V(-2.0, 1.5, -0.9), V(-1.0, 2.2, -0.3)],
+    aSdk: [V(-1.0, 2.0, -0.3), V(0.1, 2.4, 0), V(1.2, 1.0, 0.3)],
+    aStaging: [V(3.3, 1.0, 0.3), V(4.4, 2.1, 0.3), V(5.5, 1.0, 0.3)],
+    smoke: [V(-1.0, 2.2, -0.3), V(2.2, 3.8, 0), V(5.5, 1.3, 0.3)],
+  };
+  const sdkEt = sdk.userData.et;
+  const marcar = etapas.userData.marcar;
+
+  // Acciones del pipeline. Cada una recibe "fin" para encadenar la siguiente.
+  const acciones = {
+    push(commit, { dur = 2, fin } = {}) {
+      commit.position.copy(caminos.push[0]);
+      commit.visible = true;
+      escalar(commit, 1, { dur: 0.5, curva: curvas.resorte });
+      mostrar(commit.userData.et, 0.3);
+      recorrer(commit, caminos.push, { dur, demora: 0.5, fin });
+    },
+    webhook({ dur = 2.6, fin } = {}) {
+      sobre.visible = sobre.userData.et.visible = true;
+      recorrer(sobre, caminos.webhook, {
+        dur,
+        fin() {
+          sobre.visible = sobre.userData.et.visible = false;
+          destellar(torre);
+          marcar(0, 'ok');
+          fin?.();
+        },
+      });
+    },
+    buildTest({ falla = false, r = 1, fin } = {}) {
+      marcar(1, 'corriendo');
+      sdkEt.element.className = 'etiqueta';
+      sdkEt.element.innerHTML = '<b>dotnet/sdk</b><span>Build…</span>';
+      sdk.userData.material.color.setHex(C.dotnet);
+      barra.scale.x = 0.001;
+      escalar(sdk, 1, { dur: 0.6 * r, curva: curvas.resorte });
+      mostrar(sdkEt, 0.4 * r);
+      paquete.visible = true;
+      paquete.position.copy(caminos.aSdk[0]);
+      recorrer(paquete, caminos.aSdk, { dur: 1.0 * r, fin() { paquete.visible = false; } });
+      progreso(barra, 1, { dur: 1.2 * r, demora: 1.0 * r, curva: curvas.lineal });
+      luego(2.3 * r, () => {
+        marcar(1, 'ok');
+        marcar(2, 'corriendo');
+        sdkEt.element.innerHTML = '<b>dotnet/sdk</b><span>Test…</span>';
+        barra.scale.x = 0.001;
+      });
+      progreso(barra, falla ? 0.7 : 1, { dur: 1.2 * r, demora: 2.4 * r, curva: curvas.lineal });
+      luego(3.7 * r, () => {
+        if (falla) {
+          colorear(sdk.userData.material, C.mal, { dur: 0.4 });
+          sdkEt.element.className = 'etiqueta mal';
+          sdkEt.element.innerHTML = '<b>✗ 1 test falló</b><span>esperaba "dev", llegó "desarrollo"</span>';
+          marcar(2, 'mal');
+          [3, 4, 5].forEach(i => marcar(i, 'salteado'));
+          sacudir(0.06);
+          fin?.();
+          return;
+        }
+        sdkEt.element.className = 'etiqueta bien';
+        sdkEt.element.innerHTML = '<b>✓ 3/3 tests</b><span>reporte JUnit publicado</span>';
+        marcar(2, 'ok');
+        // Efímero: terminado el trabajo, el contenedor se borra.
+        luego(0.9 * r, () => { sdkEt.visible = false; escalar(sdk, 0.001, { dur: 0.4, curva: curvas.entrada }); });
+        luego(1.0 * r, () => fin?.());
+      });
+    },
+    imagen(v, { fin } = {}) {
+      marcar(3, 'corriendo');
+      imagen.userData.et.element.innerHTML = `<b>hola-mundo:${v}</b><span>+ etiqueta del commit</span>`;
+      const lista = imagen.userData.losas[0].visible;
+      if (lista) {
+        imagen.userData.losas.forEach((l, i) => volar(l, V(0, l.userData.y, 0), { arco: 0.25, dur: 0.5, demora: i * 0.12 }));
+        reanimar(imagen.userData.et, 'destello');
+      } else {
+        apilar(imagen);
+      }
+      luego(lista ? 0.9 : 1.6, () => { marcar(3, 'ok'); fin?.(); });
+    },
+    deploy(v, { fin } = {}) {
+      marcar(4, 'corriendo');
+      staging.userData.et.visible = false;
+      escalar(staging, 0.001, { dur: 0.4, curva: curvas.entrada });
+      json.element.style.opacity = 0.35;
+      paquete.visible = true;
+      paquete.position.copy(caminos.aStaging[0]);
+      recorrer(paquete, caminos.aStaging, {
+        dur: 1.1, demora: 0.3,
+        fin() {
+          paquete.visible = false;
+          escalar(staging, 1, { dur: 0.6, curva: curvas.resorte });
+          mostrar(staging.userData.et, 0.4);
+          json.element.innerHTML = jsonStaging(v);
+          json.element.style.opacity = 1;
+          reanimar(json, 'destello');
+          marcar(4, 'ok');
+          fin?.();
+        },
+      });
+    },
+    smoke({ fin } = {}) {
+      marcar(5, 'corriendo');
+      json.element.classList.remove('bien');
+      sonda.visible = etSonda.visible = true;
+      sonda.position.copy(caminos.smoke[0]);
+      recorrer(sonda, caminos.smoke, {
+        dur: 1.4,
+        fin() {
+          json.element.classList.add('bien');
+          reanimar(json, 'destello');
+          recorrer(sonda, [...caminos.smoke].reverse(), {
+            dur: 1.0,
+            fin() { sonda.visible = etSonda.visible = false; marcar(5, 'ok'); destellar(torre); fin?.(); },
+          });
+        },
+      });
+    },
+  };
+
+  return { torre, staging, brilloStaging, json, etapas, imagen, sdk, acciones };
+}
+
+function crearEscena5() {
+  const g = new THREE.Group();
+  const c = crearCircuito(g, { version: 16, imagenLista: false });
+  const commit = crearCommit('<b>commit</b> a1b2c3d');
+  commit.visible = false;
+  commit.scale.setScalar(0.001);
+  commit.userData.et.visible = false;
+  g.add(commit);
+
+  encuadrar(...vistaHacia(V(-0.5, 1.0, 0.3), 14));
+
+  const pasos = [
+    {
+      titulo: 'El viaje de un commit',
+      texto: 'Todas las piezas juntas.',
+      panel: {
+        titulo: 'La arquitectura del proyecto',
+        puntos: [
+          '<b>GitHub:</b> guarda el código y avisa con el webhook.',
+          '<b>Túnel ngrok:</b> la puerta de entrada a la PC.',
+          '<b>Jenkins:</b> el controller, corriendo en un contenedor.',
+          '<b>Contenedores efímeros:</b> compilan y prueban.',
+          '<b>Imagen y staging:</b> el resultado, en el puerto 8081.',
+        ],
+      },
+    },
+    {
+      titulo: '1 · git push',
+      texto: 'El cambio sale de la PC hacia GitHub.',
+      accion() {
+        encuadrar(...vistaHacia(V(-4.3, 1.6, 0.8), 7.5, { panel: false }));
+        c.acciones.push(commit, { dur: 2.2 });
+      },
+    },
+    {
+      titulo: '2 · GitHub avisa',
+      texto: 'El webhook entra por el túnel y Jenkins arranca el build.',
+      accion() {
+        encuadrar(...vistaHacia(V(-3.4, 1.4, -0.5), 8.5, { panel: false, giro: 0.15 }));
+        c.acciones.webhook({ dur: 2.8 });
+      },
+    },
+    {
+      titulo: '3 · Build y Test',
+      texto: 'En un contenedor efímero con el SDK de .NET.',
+      accion() {
+        encuadrar(...vistaHacia(V(0.4, 1.1, 0.4), 6.8, { panel: false }));
+        c.acciones.buildTest();
+      },
+    },
+    {
+      titulo: '4 · Docker Image',
+      texto: 'El artefacto: una imagen con el número de build.',
+      accion() {
+        encuadrar(...vistaHacia(V(3.1, 1.0, 0.4), 6.2, { panel: false }));
+        c.acciones.imagen(17);
+      },
+    },
+    {
+      titulo: '5 · Deploy a staging',
+      texto: 'Sale el contenedor viejo y entra el nuevo, con la versión 17.',
+      accion() {
+        encuadrar(...vistaHacia(V(4.6, 1.1, 0.4), 6.6, { panel: false }));
+        c.acciones.deploy(17);
+      },
+    },
+    {
+      titulo: '6 · Smoke test',
+      texto: 'Staging responde, y con la versión correcta.',
+      panel: {
+        titulo: 'El smoke test',
+        puntos: [
+          '<code>curl</code> a <code>http://hola-mundo-staging:8080</code>, por la red Docker compartida.',
+          'No alcanza con un 200: la respuesta tiene que traer la versión de <b>este</b> build.',
+          'Del push al deploy, sin tocar nada: eso es CI/CD.',
+        ],
+      },
+      accion() {
+        encuadrar(...vistaHacia(V(2.2, 1.3, 0.3), 10.5));
+        c.acciones.smoke();
+      },
+    },
+  ];
+
+  function actualizar(dt, t) {
+    parpadear(c.torre, t);
+    commit.rotation.y += dt * 0.8;
+    c.brilloStaging.material.opacity = 0.75 + 0.25 * Math.sin(t * 2);
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+function crearEscena6() {
+  const g = new THREE.Group();
+  const c = crearCircuito(g, { version: 17, imagenLista: true });
+  c.etapas.userData.todas('ok');
+  const bug = crearCommit('<b>commit</b> 9b5a5db 🐞', C.ambar);
+  const revert = crearCommit('<b>Revert</b> 593eb14', C.azul);
+  for (const m of [bug, revert]) {
+    m.visible = false;
+    m.scale.setScalar(0.001);
+    m.userData.et.visible = false;
+    g.add(m);
+  }
+
+  // La barrera: el quality gate entre Test y el resto del pipeline
+  const barrera = new THREE.Group();
+  barrera.position.set(2.25, 0, 1.55);
+  const poste = caja(0.12, 1.0, 0.12, mat(C.texto), 0.02);
+  poste.position.y = 0.5;
+  const brazo = new THREE.Group();
+  brazo.position.y = 0.95;
+  for (let i = 0; i < 6; i++) {
+    const segmento = caja(0.08, 0.34, 0.08, mat(i % 2 ? 0xffffff : C.mal), 0.01);
+    segmento.position.y = 0.17 + i * 0.34;
+    brazo.add(segmento);
+  }
+  barrera.add(poste, brazo);
+  const etBarrera = etiqueta('<b>Quality gate</b><span>sin tests en verde no se sigue</span>', 'mal');
+  etBarrera.position.set(2.25, 1.55, 0.6);
+  etBarrera.visible = false;
+  g.add(barrera, etBarrera);
+  const bajarBarrera = (abajo, opciones = {}) => {
+    let r0;
+    animar({ dur: 0.9, curva: abajo ? curvas.rebote : curvas.suave, ...opciones, inicio() { r0 = brazo.rotation.x; }, paso: k => { brazo.rotation.x = lerp(r0, abajo ? -Math.PI / 2 : 0, k); } });
+  };
+
+  encuadrar(...vistaHacia(V(-3.4, 1.4, 0.4), 8.5, { panel: false }));
+
+  const pasos = [
+    {
+      titulo: 'Alguien rompe algo',
+      texto: 'Un cambio con un bug llega al repositorio, como cualquier otro.',
+      accion() {
+        c.etapas.userData.todas('');
+        c.acciones.push(bug, {
+          dur: 1.8,
+          fin() { bug.userData.et.visible = false; c.acciones.webhook({ dur: 2.4 }); },
+        });
+      },
+    },
+    {
+      titulo: 'El test falla',
+      texto: 'El pipeline se corta: no se construye la imagen ni se despliega nada.',
+      accion() {
+        encuadrar(...vistaHacia(V(1.3, 1.1, 0.5), 7.2, { panel: false }));
+        c.acciones.buildTest({
+          falla: true,
+          fin() {
+            bajarBarrera(true);
+            mostrar(etBarrera, 0.6);
+          },
+        });
+      },
+    },
+    {
+      titulo: 'Staging intacto',
+      texto: 'Sigue respondiendo con la versión 17, la última que pasó todas las pruebas.',
+      panel: {
+        titulo: 'El test como quality gate',
+        puntos: [
+          'Un test fallido deja el build en <b>rojo</b> y corta los stages siguientes.',
+          'No hay imagen nueva ni deploy: staging conserva la <b>última versión buena</b>.',
+          'El equipo se entera por el build rojo, con el reporte del test que falló.',
+          'En ADO es lo mismo: los stages siguientes tienen <code>condition: succeeded()</code> por defecto.',
+        ],
+      },
+      accion() {
+        encuadrar(...vistaHacia(V(4.4, 1.1, 0.4), 8));
+        reanimar(c.json, 'destello');
+      },
+    },
+    {
+      titulo: 'Se corrige con otro commit',
+      texto: 'git revert: el pipeline vuelve a pasar y despliega solo. La versión 18 nunca llegó a staging.',
+      accion() {
+        etBarrera.visible = false;
+        encuadrar(...vistaHacia(V(0.6, 1.2, 0.3), 13, { panel: false }));
+        escalar(c.sdk, 0.001, { dur: 0.3 });
+        c.sdk.userData.et.visible = false;
+        c.etapas.userData.todas('');
+        c.acciones.push(revert, {
+          dur: 1.4,
+          fin() {
+            revert.userData.et.visible = false;
+            c.acciones.webhook({
+              dur: 1.8,
+              fin() {
+                c.acciones.buildTest({
+                  r: 0.6,
+                  fin() {
+                    bajarBarrera(false);
+                    c.acciones.imagen(19, { fin() { c.acciones.deploy(19, { fin() { c.acciones.smoke(); } }); } });
+                  },
+                });
+              },
+            });
+          },
+        });
+      },
+    },
+  ];
+
+  function actualizar(dt, t) {
+    parpadear(c.torre, t);
+    bug.rotation.y += dt * 0.8;
+    revert.rotation.y += dt * 0.8;
+    c.brilloStaging.material.opacity = 0.75 + 0.25 * Math.sin(t * 2);
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+// ───────────────────────── Escena 7: escalar y comparar ─────────────────────────
+function crearEscena7() {
+  const g = new THREE.Group();
+  const s = { confeti: [] };
+  const ZB = 16;
+  const xs = [-4.4, -2.2, 0, 2.2, 4.4];
+
+  // Cada pieza del laboratorio y su versión "de empresa"
+  const antes = [
+    () => crearImagen([['', C.grisOscuro], ['', C.dotnet], ['', C.azul]], { ancho: 0.7, alto: 0.18 }),
+    () => crearContenedor({ ancho: 0.9, alto: 0.6, color: C.bien }),
+    () => {
+      const t = crearTunel([V(-0.6, 0.1, 0), V(-0.3, 0.9, 0), V(0.3, 0.9, 0), V(0.6, 0.1, 0)], 0.12);
+      const muro = crearMuro(0.8, 0.6);
+      muro.rotation.y = Math.PI / 2;
+      muro.scale.setScalar(0.8);
+      const grupo = new THREE.Group();
+      grupo.add(t, muro);
+      return grupo;
+    },
+    () => { const t = crearTorre(); t.scale.setScalar(0.42); return t; },
+    () => {
+      const grupo = new THREE.Group();
+      const ventana = caja(0.9, 0.6, 0.05, mat(0xffffff), 0.03);
+      ventana.position.y = 0.6;
+      const barraV = caja(0.9, 0.1, 0.055, mat(C.grisOscuro), 0.03);
+      barraV.position.y = 0.85;
+      const boton = caja(0.3, 0.1, 0.06, mat(C.azul), 0.02);
+      boton.position.set(0.15, 0.45, 0.01);
+      const cursor = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 3), mat(C.texto));
+      cursor.position.set(0.32, 0.4, 0.08);
+      cursor.rotation.z = 0.6;
+      grupo.add(ventana, barraV, boton, cursor);
+      return grupo;
+    },
+  ];
+  const despues = [
+    () => {
+      const grupo = new THREE.Group();
+      for (const x of [-0.55, 0.55]) {
+        const poste = caja(0.05, 1.3, 0.05, mat(C.grisOscuro));
+        poste.position.set(x, 0.65, 0);
+        grupo.add(poste);
+      }
+      [0.35, 0.85].forEach((y, fila) => {
+        const estante = caja(1.2, 0.04, 0.5, mat(C.gris));
+        estante.position.y = y;
+        grupo.add(estante);
+        [-0.35, 0, 0.35].forEach((x, i) => {
+          const im = crearImagen([['', C.grisOscuro], ['', C.dotnet], ['', [C.azul, C.bien, C.ambar][(i + fila) % 3]]], { ancho: 0.26, alto: 0.07 });
+          im.position.set(x, y + 0.02, 0);
+          grupo.add(im);
+        });
+      });
+      return grupo;
+    },
+    () => {
+      const grupo = new THREE.Group();
+      const posiciones = [[0, 0], [0.5, 0], [-0.5, 0], [0.25, 0.43], [-0.25, 0.43], [0.25, -0.43], [-0.25, -0.43]];
+      posiciones.forEach(([x, z], i) => {
+        const pod = cilindro(0.24, 0.24, 0.3 + (i % 3) * 0.08, mat(C.k8s), false, 6);
+        pod.position.set(x, 0.15 + (i % 3) * 0.04, z);
+        grupo.add(pod);
+      });
+      return grupo;
+    },
+    () => {
+      const grupo = new THREE.Group();
+      const globo = esfera(0.45, mat(0xffffff));
+      globo.position.y = 0.6;
+      const red = new THREE.Mesh(new THREE.SphereGeometry(0.46, 12, 8), plano(C.azul, { wireframe: true }));
+      red.position.y = 0.6;
+      const orbita = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.015, 8, 64), plano(C.azul));
+      orbita.position.y = 0.6;
+      orbita.rotation.x = 1.2;
+      grupo.add(globo, red, orbita);
+      grupo.userData.gira = red;
+      return grupo;
+    },
+    () => {
+      const grupo = new THREE.Group();
+      const t = crearTorre();
+      t.scale.setScalar(0.38);
+      grupo.add(t);
+      [[-0.75, 0.3], [0.75, 0.3], [0, 0.85]].forEach(([x, z]) => {
+        const a = crearServidor('');
+        a.userData.et.element.remove();
+        a.remove(a.userData.et);
+        a.scale.setScalar(0.4);
+        a.position.set(x, 0, z);
+        grupo.add(a);
+      });
+      return grupo;
+    },
+    () => {
+      const grupo = new THREE.Group();
+      const hoja = caja(0.75, 1.0, 0.04, mat(0xffffff), 0.015);
+      hoja.position.y = 0.6;
+      grupo.add(hoja);
+      [0x7cc4ff, C.ambar, 0x7cc4ff, C.bien, C.ambar, 0x7cc4ff].forEach((color, r) => {
+        const renglon = new THREE.Mesh(new THREE.PlaneGeometry(0.5 - (r % 3) * 0.1, 0.035), plano(color));
+        renglon.position.set(-0.05 + (r % 2) * 0.06, 0.95 - r * 0.12, 0.025);
+        grupo.add(renglon);
+      });
+      return grupo;
+    },
+  ];
+  const nombresAntes = ['Imagen local', 'Contenedor staging', 'Túnel ngrok', 'Un solo nodo', 'Configuración por UI'];
+  const nombresDespues = [
+    ['Registry', 'Docker Hub · ACR'], ['Kubernetes', 'o App Service'], ['URL pública', 'sin túnel'],
+    ['Controller + agentes', "agent { label '…' }"], ['JCasC', 'la configuración es código'],
+  ];
+  const piezas = xs.map((x, i) => {
+    // Cada pieza va dentro de un grupo propio: así la animación de escala no pisa el tamaño de la pieza.
+    const a = new THREE.Group();
+    a.add(antes[i]());
+    a.position.set(x, 0, 0);
+    a.scale.setScalar(0.001);
+    const d = new THREE.Group();
+    const interior = despues[i]();
+    d.add(interior);
+    d.userData.gira = interior.userData.gira;
+    d.position.set(x, 0, 0);
+    d.scale.setScalar(0.001);
+    const et = etiqueta(`<b>${nombresAntes[i]}</b><span>en la demo</span>`);
+    et.position.set(x, 1.85, 0);
+    et.visible = false;
+    g.add(a, d, et);
+    return { a, d, et };
+  });
+
+  // Los tres pilares de la comparación
+  const pilares = [
+    ['<b>Jenkins</b><span>self-hosted · libre · plugins</span>', ZB - 2.6, C.mal],
+    ['<b>Azure DevOps</b><span>servicio administrado</span>', ZB, 0x0078d4],
+    ['<b>GitHub Actions</b><span>integrado al repo</span>', ZB + 2.6, 0x24292f],
+  ].map(([html, x, color], i) => {
+    const p = new THREE.Group();
+    p.position.set(x, 0, 0);
+    const columna = cilindro(0.7, 0.78, 1.2, mat(C.claro));
+    columna.position.y = 0.6;
+    const aro = cilindro(0.712, 0.712, 0.07, plano(color), true);
+    aro.position.y = 1.12;
+    p.add(columna, aro);
+    let icono;
+    if (i === 0) {
+      icono = crearTorre();
+      icono.scale.setScalar(0.4);
+      icono.position.y = 1.2;
+    } else if (i === 1) {
+      icono = caja(0.7, 0.7, 0.7, mat(color), 0.12);
+      icono.position.y = 1.65;
+    } else {
+      icono = new THREE.Group();
+      icono.add(esfera(0.4, mat(color)));
+      const play = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.26, 3), plano(0xffffff));
+      play.rotation.z = -Math.PI / 2;
+      play.position.z = 0.38;
+      icono.add(play);
+      icono.position.y = 1.65;
+    }
+    p.add(icono);
+    p.userData.icono = icono;
+    p.scale.set(1, 0.001, 1);
+    const et = etiqueta(html);
+    et.position.set(x, 2.75, 0);
+    et.visible = false;
+    g.add(p, et);
+    return { p, et };
+  });
+
+  const final = crearCommit('<b>git push</b>');
+  final.position.set(ZB, 4.0, 0);
+  final.scale.setScalar(0.001);
+  final.userData.et.visible = false;
+  g.add(final);
+
+  encuadrar(...vistaHacia(V(0, 1.0, 0), 10.5, { panel: false }));
+
+  const pasos = [
+    {
+      titulo: 'Del laboratorio a una empresa',
+      texto: 'Lo que armamos es chico, pero tiene la forma de un sistema real.',
+      accion() {
+        piezas.forEach(({ a, et }, i) => {
+          escalar(a, 1, { dur: 0.6, demora: 0.3 + i * 0.2, curva: curvas.resorte });
+          mostrar(et, 0.7 + i * 0.2);
+        });
+      },
+    },
+    {
+      titulo: 'Escalar no es un salto grande',
+      texto: 'Cada pieza tiene su equivalente, y el pipeline casi no cambia.',
+      panel: {
+        titulo: 'Qué cambia al escalar',
+        puntos: [
+          'Imagen local → <b>registry</b>: un <code>docker push</code> más y una credencial.',
+          'Contenedor staging → <b>Kubernetes</b> o App Service: cambia solo la etapa de deploy.',
+          'Túnel → Jenkins con <b>URL pública</b>: el pipeline no cambia.',
+          "Un nodo → <b>controller + agentes</b>: <code>agent { label '…' }</code>.",
+          'Configuración por UI → <b>JCasC</b> y <code>plugins.txt</code> versionados.',
+        ],
+      },
+      accion() {
+        encuadrar(...vistaHacia(V(0, 1.0, 0), 11.5));
+        piezas.forEach(({ a, d, et }, i) => {
+          const demora = 0.6 + i * 0.6;
+          escalar(a, 0.001, { dur: 0.35, demora, curva: curvas.entrada });
+          escalar(d, 1, { dur: 0.7, demora: demora + 0.3, curva: curvas.resorte });
+          luego(demora + 0.3, () => {
+            et.element.innerHTML = `<b>${nombresDespues[i][0]}</b><span>${nombresDespues[i][1]}</span>`;
+            reanimar(et, 'destello');
+          });
+        });
+      },
+    },
+    {
+      titulo: 'Jenkins, ADO o GitHub Actions',
+      texto: 'Los conceptos son los mismos; cambia quién opera la infraestructura.',
+      panel: {
+        titulo: '¿Cuándo conviene cada uno?',
+        puntos: [
+          '<b>Jenkins</b> conviene con infraestructura propia (on-premise), requisitos especiales o muchas integraciones a medida.',
+          'Su costo es operarlo: actualizaciones, plugins, backups y seguridad quedan a cargo del equipo.',
+          '<b>ADO y GitHub Actions</b> resuelven la infraestructura (agentes, URL pública, actualizaciones) a cambio de menos control y costo por uso.',
+          'Pipeline como código, agentes, stages y triggers: saber uno es saber los otros.',
+        ],
+      },
+      accion() {
+        encuadrar(...vistaHacia(V(ZB, 1.5, 0), 9));
+        pilares.forEach(({ p, et }, i) => {
+          animar({ dur: 0.9, demora: 0.5 + i * 0.35, curva: curvas.salida, paso: k => { p.scale.y = Math.max(k, 0.001); } });
+          mostrar(et, 1.2 + i * 0.35);
+        });
+      },
+    },
+    {
+      titulo: 'Ahora, <em>la práctica</em>',
+      texto: 'El mismo pipeline, funcionando de verdad.',
+      portada: true,
+      accion() {
+        pilares.forEach(({ et }) => { et.visible = false; });
+        encuadrar(...vistaHacia(V(ZB, 2.7, 0), 8.5, { panel: false, elevacion: 0.18 }));
+        escalar(final, 2.2, { dur: 0.9, demora: 0.4, curva: curvas.resorte });
+        luego(0.6, () => {
+          const colores = [C.azul, C.bien, C.ambar, C.mal, C.dotnet, 0x7cc4ff];
+          for (let i = 0; i < 160; i++) {
+            const pieza = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.05), plano(colores[i % colores.length]));
+            pieza.position.set(ZB + (Math.random() - 0.5) * 10, 5 + Math.random() * 5, (Math.random() - 0.5) * 5);
+            pieza.userData = {
+              vel: V((Math.random() - 0.5) * 0.4, -0.6 - Math.random() * 0.8, (Math.random() - 0.5) * 0.4),
+              giro: V(Math.random() * 6, Math.random() * 6, Math.random() * 6),
+            };
+            g.add(pieza);
+            s.confeti.push(pieza);
+          }
+        });
+      },
+    },
+  ];
+
+  function actualizar(dt, t) {
+    piezas.forEach(({ d }) => { if (d.userData.gira) d.userData.gira.rotation.y += dt * 0.6; });
+    pilares.forEach(({ p }, i) => {
+      if (p.userData.icono) p.userData.icono.rotation.y = Math.sin(t * 0.8 + i) * 0.4;
+    });
+    final.rotation.y += dt * 0.9;
+    final.position.y = 4.0 + Math.sin(t * 1.8) * 0.08;
+    for (const pieza of s.confeti) {
+      if (pieza.position.y <= 0.02) continue;
+      const { vel, giro } = pieza.userData;
+      pieza.position.addScaledVector(vel, dt);
+      pieza.position.x += Math.sin(t * 3 + pieza.id) * dt * 0.3;
+      pieza.rotation.x += giro.x * dt;
+      pieza.rotation.y += giro.y * dt;
+      pieza.rotation.z += giro.z * dt;
+      if (pieza.position.y < 0.02) { pieza.position.y = 0.02; pieza.rotation.set(-Math.PI / 2, 0, pieza.rotation.z); }
+    }
+  }
+
+  return { grupo: g, pasos, actualizar };
+}
+
+const ESCENAS = [
+  { nombre: 'El problema', crear: crearEscena1 },
+  { nombre: 'Jenkins por dentro', crear: crearEscena2 },
+  { nombre: 'Agentes y Docker', crear: crearEscena3 },
+  { nombre: 'Pipeline como código', crear: crearEscena4 },
+  { nombre: 'El viaje de un commit', crear: crearEscena5 },
+  { nombre: 'El pipeline protege', crear: crearEscena6 },
+  { nombre: 'Escalar y comparar', crear: crearEscena7 },
+];
+
+// ───────────────────────── Navegación ─────────────────────────
+const $leyenda = document.getElementById('leyenda');
+const $panel = document.getElementById('panel');
+const $velo = document.getElementById('velo');
+let iEscena = 0, iPaso = 0, actual = null, idTexto = 0, ocupado = false;
+
+function mostrarTextos({ titulo, texto, portada = false, integrantes, panel }) {
+  const id = ++idTexto;
+  $leyenda.classList.add('oculta');
+  $panel.classList.add('oculto');
+  setTimeout(() => {
+    if (id !== idTexto) return;
+    document.body.classList.toggle('portada', !!portada);
+    document.body.classList.toggle('arriba', portada === 'arriba');
+    $leyenda.querySelector('h1').innerHTML = titulo;
+    $leyenda.querySelector('p').textContent = texto;
+    const $integrantes = $leyenda.querySelector('.integrantes');
+    $integrantes.innerHTML = (integrantes ?? []).map(([nombre, lu]) => `<div>${nombre}<span>LU ${lu}</span></div>`).join('');
+    $integrantes.classList.toggle('visible', !!integrantes);
+    $leyenda.classList.remove('oculta');
+    if (panel) {
+      $panel.querySelector('h2').textContent = panel.titulo;
+      // Cada punto entra un poco después del anterior, para poder narrarlos de a uno.
+      $panel.querySelector('ul').innerHTML = panel.puntos
+        .map((p, i) => `<li style="animation-delay:${0.5 + i * 0.6}s">${p}</li>`).join('');
+      $panel.classList.remove('oculto');
+    }
+  }, 420);
+}
+
+function actualizarHud() {
+  document.getElementById('hud-escena').textContent = `Escena ${iEscena + 1} / ${ESCENAS.length} · ${ESCENAS[iEscena].nombre}`;
+  document.getElementById('puntos').innerHTML = actual.pasos.map((_, i) => `<i class="${i <= iPaso ? 'hecho' : ''}"></i>`).join('');
+}
+
+function ejecutarPaso() {
+  const paso = actual.pasos[iPaso];
+  mostrarTextos(paso);
+  paso.accion?.();
+  actualizarHud();
+}
+
+// Para ir a un momento: se reconstruye la escena, los momentos anteriores se aplican
+// al instante y el pedido se anima. Así "volver" siempre deja la escena coherente.
+function montar(escena, paso, escenaNueva) {
+  tweens = [];
+  if (actual) {
+    scene.remove(actual.grupo);
+    actual.grupo.traverse(o => { if (o.isCSS2DObject) o.element.remove(); });
+  }
+  iEscena = escena;
+  actual = ESCENAS[escena].crear();
+  scene.add(actual.grupo);
+  iPaso = paso < 0 ? actual.pasos.length - 1 : paso;
+  instantaneo = true;
+  for (let p = 0; p < iPaso; p++) actual.pasos[p].accion?.();
+  instantaneo = false;
+  if (escenaNueva) {
+    // Con el velo cerrado, la cámara salta directo al encuadre de la escena nueva.
+    cam.base.copy(cam.pos);
+    cam.miraActual.copy(cam.mira);
+    cam.velPos.set(0, 0, 0);
+    cam.velMira.set(0, 0, 0);
+  }
+  ejecutarPaso();
+}
+
+function irA(escena, paso, { fundido = false } = {}) {
+  if (!fundido) return montar(escena, paso, false);
+  ocupado = true;
+  $velo.classList.remove('abierto');
+  $leyenda.classList.add('oculta');
+  $panel.classList.add('oculto');
+  setTimeout(() => {
+    montar(escena, paso, true);
+    $velo.classList.add('abierto');
+    ocupado = false;
+  }, 480);
+}
+
+function avanzar() {
+  if (iPaso < actual.pasos.length - 1) { iPaso++; ejecutarPaso(); }
+  else if (iEscena < ESCENAS.length - 1) irA(iEscena + 1, 0, { fundido: true });
+}
+function retroceder() {
+  if (iPaso > 0) irA(iEscena, iPaso - 1);
+  else if (iEscena > 0) irA(iEscena - 1, -1, { fundido: true });
+}
+
+addEventListener('keydown', e => {
+  if (e.code === 'KeyH') return document.body.classList.toggle('limpio');
+  if (e.code === 'KeyF') return document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  if (ocupado || !actual) return;
+  if (['Space', 'ArrowRight', 'PageDown'].includes(e.code)) { e.preventDefault(); avanzar(); }
+  else if (['ArrowLeft', 'PageUp'].includes(e.code)) { e.preventDefault(); retroceder(); }
+  else if (e.code === 'KeyR') irA(iEscena, 0);
+  else if (/^Digit[1-7]$/.test(e.code)) irA(Number(e.code.slice(-1)) - 1, 0, { fundido: true });
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  etiquetas.setSize(innerWidth, innerHeight);
+});
+
+// ───────────────────────── Bucle principal ─────────────────────────
+const reloj = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(reloj.getDelta(), 1 / 20);
+  tiempo += dt;
+  actualizarTweens(dt);
+  actual?.actualizar?.(dt, tiempo);
+
+  const pos = motas.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, (pos.getY(i) + dt * 0.08) % 9);
+  pos.needsUpdate = true;
+
+  amortiguar(cam.base, cam.pos, cam.velPos, cam.suavidad, dt);
+  amortiguar(cam.miraActual, cam.mira, cam.velMira, cam.suavidad, dt);
+  // Balanceo leve y constante: la imagen nunca queda congelada.
+  camera.position.set(
+    cam.base.x + Math.sin(tiempo * 0.31) * 0.12,
+    cam.base.y + Math.sin(tiempo * 0.23) * 0.06,
+    cam.base.z,
+  );
+  if (cam.sacudida > 0.001) {
+    camera.position.x += (Math.random() - 0.5) * cam.sacudida;
+    camera.position.y += (Math.random() - 0.5) * cam.sacudida;
+    cam.sacudida *= Math.exp(-dt * 7);
+  }
+  camera.lookAt(cam.miraActual);
+  // El sol y su sombra acompañan a la cámara: las escenas están en zonas distintas del piso.
+  sol.target.position.set(cam.miraActual.x, 0, cam.miraActual.z);
+  sol.position.set(cam.miraActual.x + 5, 10, cam.miraActual.z + 6);
+  motas.position.x = cam.miraActual.x;
+
+  renderer.render(scene, camera);
+  etiquetas.render(scene, camera);
+});
+
+irA(0, 0, { fundido: true });
+</script>
+</body>
+</html>
