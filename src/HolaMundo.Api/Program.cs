@@ -7,7 +7,7 @@ var app = builder.Build();
 // Así la misma imagen sirve para cualquier entorno y cada uno le dice qué versión es.
 // Se lee en cada request para que los tests puedan inyectarla por configuración.
 app.MapGet("/", (IConfiguration config) =>
-    new Saludo(Saludo.MensajeActual, config["APP_VERSION"] ?? "dev"));
+    new Saludo(Saludo.MensajeActual, config["APP_VERSION"] ?? "desarrollo"));
 
 app.Run();
 
