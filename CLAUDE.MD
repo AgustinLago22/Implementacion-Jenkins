@@ -213,8 +213,10 @@ Cada extra se trata como un paso propio, de a uno.
 - **10b — Configuration as Code (JCasC):** `casc.yaml` con usuario admin, configuración básica y el job definido como código, para que Jenkins se levante configurado sin clicks.
 - **10c — Agente separado:** un contenedor agente (`jenkins/inbound-agent` o SSH) conectado al controller, para mostrar la arquitectura controller/agent.
 - **10d — Aprobación manual:** un stage con `input` para "promover a producción" (otro contenedor en otro puerto), equivalente a un approval gate de ADO.
+- **10e — Animación explicativa (three.js):** `docs/presentacion/animacion.html`, un solo archivo que se avanza con la barra espaciadora, para narrar encima en el video. Escenas: el problema, Jenkins (controller, plugins, agentes efímeros), el viaje de un commit (NAT, túnel, estaciones del pipeline, staging), el pipeline protege (cubo rechazado en Test) y escalar.
 
-### Paso 11 — Ensayo de la demo
+### Paso 11 — Grabación del video (antes: ensayo de la demo)
+- **Cambio de plan:** la presentación se entrega como un **video de hasta 20 minutos**, no como demo en vivo. Guion de ~16 minutos: problema → Jenkins → arquitectura → código → acto 1 → acto 2 → problemas y análisis crítico → conclusión.
 - **Objetivo:** guion de la demo:
   - acto 1: cambio de mensaje y deploy;
   - acto 2: test roto y pipeline rojo, con staging intacto.
@@ -224,7 +226,7 @@ Cada extra se trata como un paso propio, de a uno.
   - túnel activo y webhook verificado;
   - staging en verde;
   - polling como respaldo.
-- **Terminado cuando:** la demo sale completa dos veces seguidas y hay un **video grabado de respaldo**.
+- **Terminado cuando:** el video está grabado y editado, dura menos de 20 minutos y muestra los dos actos funcionando de verdad. Si se acelera la espera del build, se dice en la narración.
 
 ---
 
@@ -266,15 +268,16 @@ Cada extra se trata como un paso propio, de a uno.
 
 > Actualizar al cerrar cada paso.
 
-- **Paso actual:** 10 — Extras (pendiente de elegir cuál y confirmar para arrancar)
-- **Pasos completados:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+- **Paso actual:** 10e — Animación explicativa con three.js (pendiente de confirmación para arrancar). Después: paso 11 (grabación del video). El 10a se puede escribir directamente en el informe.
+- **Pasos completados:** 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, más la preparación del video (stages de diagnóstico sacados, acto 2 ensayado con staging intacto: builds #17, #18 y #19)
 - **Notas:**
   - El stack `argos-platform` (cAdvisor) ocupa el puerto 8080 en la PC de un integrante: frenarlo antes de levantar Jenkins y sumarlo al checklist de la demo.
   - Cada integrante ya tiene su propio Jenkins. Después de un `git pull` que toque `infra/jenkins/`, hay que correr `docker compose build` y `docker compose up -d`: el `Jenkinsfile` se lee de GitHub y puede pedir herramientas que la imagen vieja no tiene.
   - Ni el Docker CLI ni los plugins tienen versión fija: la imagen no es 100% reproducible. Queda como mejora para el informe.
   - Evaluar adelantar el 10b (JCasC), para que un integrante nuevo no repita el asistente a mano.
   - Los agentes efímeros solo comparten lo que está en el workspace o en el volumen: la caché de NuGet vive en `/var/jenkins_home/.nuget/packages`. Tenerlo en cuenta en el paso 7 si se agregan stages con contenedores.
-  - Los stages `Info del build` y `Docker disponible` son de diagnóstico. Proponer sacarlos o unificarlos antes de la demo (paso 8 u 11), para que la vista de stages quede limpia.
+  - Los stages de diagnóstico ya se sacaron (build #17). El pipeline queda: Saludo → Build → Test → Docker Image → Deploy Staging → Smoke Test.
+  - Acto 2 en el video: cambiar `?? "dev"` por `?? "desarrollo"` en `Program.cs`, y corregirlo con `git revert HEAD --no-edit`.
   - Red `ci-local` (externa): cada integrante la crea una vez con `docker network create ci-local` antes de `docker compose up -d`; si no existe, el compose no levanta.
   - La limpieza de imágenes está en `post { success }` y no usa `docker image prune -a`, porque le saca la etiqueta del SHA a la imagen en uso.
   - Probar staging desde PowerShell con `curl.exe`: `curl` es un alias de `Invoke-WebRequest`.

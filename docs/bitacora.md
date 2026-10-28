@@ -206,3 +206,27 @@ Registro paso a paso de lo que se hizo, las decisiones tomadas y los problemas e
 **Verificación:** se cambió el saludo a "disparado por webhook" y se pusheó (`aac50ed`). Sin tocar Jenkins, el build #15 arrancó en segundos con la causa **"Started by GitHub push by AgustinLago22"** y salió completo en verde. El smoke test devolvió `{"mensaje":"Hola mundo desde Jenkins, disparado por webhook","version":"15"}`, y la limpieza borró las etiquetas del #14 (`hola-mundo:14`, `hola-mundo:8e3be45`).
 **Evidencia guardada:** docs/capturas/paso9-webhook-github.png, docs/capturas/paso9-started-by-github-push.png, `infra/docker-compose.yml`, `infra/ngrok/politica.yml`
 **Equivalente en ADO:** `trigger: branches: include: [main]`. En ADO, el problema de este paso "no existe": Azure Pipelines es un servicio en la nube con dirección pública, y GitHub le avisa directamente (a través de la GitHub App de Azure Pipelines). Lo interesante es que los agentes *self-hosted* de ADO funcionan detrás de NAT por la misma razón que el túnel: la conexión la abren ellos hacia afuera y le preguntan a ADO si hay trabajo (pull). Es la misma idea que el polling, pero del lado del agente.
+
+---
+
+## Preparación del video — Limpieza del pipeline y ensayo del acto 2 (2026-10-28)
+**Cambio de plan:** la presentación se entrega como **video de hasta 20 minutos**, no como demo en vivo. El paso 11 pasa a ser "grabar el video". Se suma un extra nuevo, el **10e**: una animación con three.js para explicar los conceptos.
+**Qué se hizo:**
+- Se sacaron del `Jenkinsfile` los stages de diagnóstico `Info del build` (paso 3) y `Docker disponible` (paso 5). El pipeline queda: **Saludo → Build → Test → Docker Image → Deploy Staging → Smoke Test**.
+- Se ensayó el acto 2 con el pipeline completo. El único build rojo anterior (#7, paso 6) era de antes de que existieran el deploy y el smoke test, así que faltaba probar que staging quedara intacto.
+**Decisiones y por qué:**
+- **Por qué sacar los stages de diagnóstico:** ya cumplieron su función (comprobar el checkout y el acceso al socket de Docker), no producen nada y ensucian la vista de stages en el video. El commit sigue visible en la página del build y en la consola (`Checking out Revision ...`). Lo único que se pierde es el aviso temprano si falta el socket: en ese caso falla el stage Build, con un mensaje menos claro.
+- **Se queda `Saludo`:** es el "hola mundo" que le da nombre al proyecto, y muestra el número de build.
+- **El bug se corrige con `git revert`, no reescribiendo el historial:** el commit roto ya estaba en GitHub. El revert agrega un commit nuevo que lo deshace, así queda registrado qué se rompió y cómo se corrigió.
+**Problemas y cómo se resolvieron:**
+1. (Menor) `git revert HEAD --no--edit`, con un guion de más, hace que git muestre la ayuda y no haga el revert. El `git push` siguiente respondió `Everything up-to-date` y no se disparó ningún build. Se corrigió con `--no-edit`.
+**Verificación:**
+| Build | Commit | Resultado | Staging |
+|---|---|---|---|
+| #17 | `b2f78b1` (sin stages de diagnóstico) | verde | v17 |
+| #18 | `9b5a5db` (`?? "desarrollo"`, rompe un test) | **rojo en Test**; Docker Image, Deploy y Smoke Test no se ejecutan | **sigue en v17** |
+| #19 | `593eb14` (revert) | verde | v19 |
+
+El build rojo también consume un número: staging pasa de la v17 a la v19, y la 18 nunca existió como imagen.
+**Evidencia guardada:** docs/capturas/paso11-acto2-staging-intacto.png (opcional)
+**Equivalente en ADO:** si falla `DotNetCoreCLI@2 test`, los jobs y stages siguientes no corren, porque su condición por defecto es `succeeded()`. `git revert` ≈ el botón **Revert** de un pull request en ADO.
